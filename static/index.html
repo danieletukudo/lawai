@@ -239,9 +239,142 @@
   .modal .firm { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-soft); white-space: pre-wrap; font-size: 12.5px; color: var(--body); }
   .modal .close { margin-top: 18px; }
   [hidden] { display: none !important; }
+
+  /* ---------- mobile chrome (hidden on desktop) ---------- */
+  .mnav, .panel-close, .top-menu-btn { display: none; }
+  .top-btn .btn-label { display: inline; }
+
+  /* tablet: chat + one side panel at a time still cramped — collapse earlier */
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 260px minmax(0, 1fr) minmax(0, .92fr); }
+    .brand { font-size: 16px; }
+    .brand-sub { display: none; }
+    .pill span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+  @media (max-width: 900px) {
+    html, body { height: 100%; height: 100dvh; }
+    body {
+      grid-template-rows: 50px minmax(0, 1fr) 56px;
+      overflow: hidden;
+    }
+    .top { padding: 0 10px 0 8px; gap: 8px; }
+    .logo { width: 26px; height: 26px; font-size: 9px; }
+    .brand { font-size: 15px; max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .brand-sub { display: none; }
+    .pill { height: 28px; padding: 0 10px; font-size: 11px; max-width: 34vw; }
+    .pill span { max-width: none; }
+    .top-btn { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 8px; }
+    .top-btn .btn-label { display: none; }
+    .avatar { width: 30px; height: 30px; font-size: 11px; }
+
+    main {
+      display: block;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .side, .chat, .table {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      z-index: 1;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(12px);
+      opacity: 0;
+      transition: opacity .16s ease, transform .16s ease, visibility .16s;
+    }
+    body[data-panel="files"] .side,
+    body[data-panel="chat"] .chat,
+    body[data-panel="draft"] .table {
+      visibility: visible;
+      pointer-events: auto;
+      transform: none;
+      opacity: 1;
+      z-index: 2;
+    }
+
+    .side { background: var(--side); }
+    .chat-head, .table-head {
+      padding-left: 12px;
+      padding-right: 12px;
+      gap: 8px;
+      height: 50px;
+    }
+    .chat-head { justify-content: flex-start; gap: 8px; }
+    .case-pill { max-width: 42%; }
+    .case-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .thread { padding: 14px 12px 6px; }
+    .lori-body { padding-left: 0; }
+    .bubble { max-width: 92%; }
+    .composer-wrap { padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .hint { display: none; }
+    .doc-top { flex-wrap: wrap; gap: 8px; }
+    .doc-top .open { margin-left: 0; width: 100%; text-align: left; }
+    .doc-actions { gap: 6px; }
+    .doc-actions .btn { flex: 1 1 calc(50% - 6px); justify-content: center; }
+    .table-head { flex-wrap: wrap; height: auto; min-height: 50px; padding-top: 8px; padding-bottom: 8px; }
+    .table-head h2 { flex: 1 1 auto; min-width: 0; font-size: 13px; }
+    .table-head .actions { margin-left: 0; width: 100%; justify-content: stretch; }
+    .table-head .actions .btn { flex: 1; justify-content: center; padding: 0 8px; font-size: 12px; }
+    .table-sub { flex-wrap: wrap; white-space: normal; gap: 4px 10px; padding: 8px 12px; }
+    .viewer { padding: 12px; }
+    .page.blank { padding: 28px 18px; font-size: 12.5px; }
+    .table-foot {
+      height: auto;
+      min-height: 46px;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      padding: 8px 12px;
+    }
+    .table-foot .kind { max-width: none; }
+    .table-foot .fmt {
+      border-left: 0;
+      padding-left: 0;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .file-row .del { display: grid; } /* always show on touch */
+    .toast { left: 12px; right: 12px; transform: none; bottom: calc(68px + env(safe-area-inset-bottom, 0px)); max-width: none; }
+    .modal { width: calc(100vw - 24px); max-height: 78dvh; padding: 18px 16px; border-radius: 12px; }
+
+    .mnav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      background: #fff;
+      border-top: 1px solid var(--line);
+      padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+      z-index: 40;
+    }
+    .mnav button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      height: 48px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .mnav button svg { color: currentColor; }
+    .mnav button.on { color: var(--navy); background: #eef1f7; }
+  }
+
+  @media (max-width: 420px) {
+    .brand { display: none; }
+    .pill { max-width: 48vw; }
+    .sources-on { display: none; }
+    .agent .small { display: none; }
+  }
 </style>
 </head>
-<body>
+<body data-panel="chat">
 
 <header class="top">
   <div class="logo">TFL</div>
@@ -249,7 +382,7 @@
   <div class="brand-sub">AI Workspace</div>
   <div class="top-right">
     <div class="pill"><i class="dot" id="leapDot"></i><span id="leapText"></span></div>
-    <button class="top-btn" id="rulesBtn"><span data-i="shield"></span>Formatting rules</button>
+    <button class="top-btn" id="rulesBtn" title="Formatting rules"><span data-i="shield"></span><span class="btn-label">Formatting rules</span></button>
     <div class="avatar" id="avatar"></div>
   </div>
 </header>
@@ -321,6 +454,12 @@
   </section>
 </main>
 
+<nav class="mnav" id="mnav" aria-label="Workspace panels">
+  <button type="button" data-panel="files" id="navFiles"><span data-i="folder"></span>Files</button>
+  <button type="button" data-panel="chat" id="navChat" class="on"><span data-i="chat"></span>Chat</button>
+  <button type="button" data-panel="draft" id="navDraft"><span data-i="lines"></span>Draft</button>
+</nav>
+
 <div class="toast" id="toast"></div>
 <div class="veil" id="veil" hidden><div class="modal" id="modal"></div></div>
 
@@ -349,6 +488,7 @@ const ICON = {
   x: '<path d="m4 4 8 8M12 4l-8 8"/>',
   user: '<circle cx="8" cy="5.6" r="2.6"/><path d="M3 13.4c.6-2.3 2.6-3.7 5-3.7s4.4 1.4 5 3.7"/>',
   lines: '<path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4.5"/>',
+  chat: '<path d="M2.5 3.5h11c.6 0 1 .4 1 1v6.2c0 .6-.4 1-1 1H7.2L4 14v-2.3H2.5c-.6 0-1-.4-1-1V4.5c0-.6.4-1 1-1z"/>',
 };
 const icon = (name, size = 16, sw = 1.5) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
@@ -717,10 +857,14 @@ $('thread').addEventListener('click', async (e) => {
   if (act === 'split') return toast(SAMPLE ? SAMPLE_NOTE : `${S.court_split} Building the volume files is not built yet.`, 9000);
   if (blocked()) return;
   try {
-    if (act === 'open') apply(await call(`/drafts/${id}/open`, { method: 'POST' }));
+    if (act === 'open') {
+      apply(await call(`/drafts/${id}/open`, { method: 'POST' }));
+      if (isNarrow()) setPanel('draft');
+    }
     if (act === 'save') {
       apply(await call(`/drafts/${id}/save`, { method: 'POST' }));
       toast('Saved and opened in the Drafting Table. LEAP is not connected yet, so the PDF was filed in data/saved.', 8000);
+      if (isNarrow()) setPanel('draft');
     }
   } catch (err) { toast(err.message); }
 });
@@ -768,7 +912,32 @@ $('rulesBtn').addEventListener('click', async () => {
   } catch (err) { toast(err.message); }
 });
 $('veil').addEventListener('click', (e) => { if (e.target.id === 'veil' || e.target.id === 'closeModal') $('veil').hidden = true; });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('veil').hidden = true; $('agentMenu').hidden = true; } });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  $('veil').hidden = true;
+  $('agentMenu').hidden = true;
+  if (isNarrow() && document.body.dataset.panel !== 'chat' && $('veil').hidden) setPanel('chat');
+});
+
+
+/* ---------- mobile panels ---------- */
+function isNarrow() {
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+function setPanel(name) {
+  if (!["files", "chat", "draft"].includes(name)) name = "chat";
+  document.body.dataset.panel = name;
+  document.querySelectorAll("#mnav [data-panel]").forEach((btn) => {
+    btn.classList.toggle("on", btn.dataset.panel === name);
+  });
+}
+document.getElementById("mnav").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-panel]");
+  if (btn) setPanel(btn.dataset.panel);
+});
+window.addEventListener("resize", () => {
+  if (!isNarrow()) document.body.dataset.panel = document.body.dataset.panel || "chat";
+});
 
 /* ---------- start ---------- */
 async function start() {
