@@ -36,7 +36,6 @@ from app.settings import (
     EMBEDDING_MODEL,
     EMBEDDING_VECTOR_SIZE,
     QDRANT_URL,
-    USE_QDRANT_CLOUD,
     FIRM_DIR,
     FIRM_NAME,
     KB_SOURCES,
@@ -46,7 +45,6 @@ from app.settings import (
     OKF_DIR,
     PROMPT_PATH,
     QDRANT_COLLECTION,
-    QDRANT_DIR,
     UPLOAD_BATCH_MB,
 )
 from app.store import clear_thread, set_kv
@@ -340,13 +338,12 @@ def list_knowledge():
         "documents": sorted(p.name for p in OKF_DIR.glob("*.md")),
         "chunk_dir": str(CHUNK_DIR),
         "chunks": sum(1 for _ in CHUNK_DIR.glob("*.md")),
-        "vector_store": "qdrant-cloud" if USE_QDRANT_CLOUD else "qdrant-local",
-        "qdrant_url": QDRANT_URL or str(QDRANT_DIR),
-        "embeddings_dir": str(QDRANT_DIR),
+        "vector_store": "qdrant-cloud",
+        "qdrant_url": QDRANT_URL,
         "embedding_collection": QDRANT_COLLECTION,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_vector_size": EMBEDDING_VECTOR_SIZE,
-        "cloud_inference": USE_QDRANT_CLOUD,
+        "cloud_inference": True,
     }
 
 

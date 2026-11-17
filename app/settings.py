@@ -14,22 +14,14 @@ load_dotenv(ROOT / ".env")
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-# Qdrant Cloud (preferred on Render): set QDRANT_URL + QDRANT_API_KEY.
-# Embeddings then run on Qdrant Cloud Inference — no local model in RAM.
+# Qdrant Cloud only. Embeddings run on Cloud Inference — no local model.
 QDRANT_URL = (os.getenv("QDRANT_URL") or "").strip().rstrip("/")
 QDRANT_API_KEY = (os.getenv("QDRANT_API_KEY") or "").strip()
-USE_QDRANT_CLOUD = bool(QDRANT_URL)
-
-# Free Cloud Inference model (384-d). Override in .env if your cluster uses another.
-# Local fallback (no QDRANT_URL): FastEmbed BAAI/bge-small-en-v1.5, also 384-d.
-_CLOUD_EMBEDDING = "sentence-transformers/all-minilm-l6-v2"
-_LOCAL_EMBEDDING = "BAAI/bge-small-en-v1.5"
-_raw_embed = os.getenv("EMBEDDING_MODEL", "").strip()
-if _raw_embed.startswith("models/"):
-    _raw_embed = ""  # old Gemini embedding name — ignore
-EMBEDDING_MODEL = _raw_embed or (_CLOUD_EMBEDDING if USE_QDRANT_CLOUD else _LOCAL_EMBEDDING)
+# Free Cloud Inference model (384-d). Enable Inference on the cluster in the Qdrant console.
+EMBEDDING_MODEL = (os.getenv("EMBEDDING_MODEL") or "sentence-transformers/all-minilm-l6-v2").strip()
+if EMBEDDING_MODEL.startswith("models/"):
+    EMBEDDING_MODEL = "sentence-transformers/all-minilm-l6-v2"
 EMBEDDING_VECTOR_SIZE = int(os.getenv("EMBEDDING_VECTOR_SIZE", "384"))
-EMBEDDING_CACHE_DIR = Path(os.getenv("EMBEDDING_CACHE_DIR", str(ROOT / "data" / "models")))
 LIVE_URL = os.getenv("LIVE_URL", "").rstrip("/")
 FIRM_NAME = os.getenv("FIRM_NAME", "Tanya Freeman Law LLC")
 # Shown under the user's chat bubbles. There is no sign-in yet.
@@ -60,7 +52,6 @@ OKF_DIR = ROOT / "knowledge" / "okf"
 CHUNK_DIR = OKF_DIR / "chunks"
 DATA_DIR = ROOT / "data"
 DB_PATH = DATA_DIR / "bot.db"
-QDRANT_DIR = DATA_DIR / "qdrant"
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "lori_v3")  # bump when embedding backend changes
 DRAFT_DIR = DATA_DIR / "drafts"
 SAVED_DIR = DATA_DIR / "saved"  # stand-in for LEAP until LEAP is connected
@@ -92,11 +83,9 @@ for folder in (
     OKF_DIR,
     CHUNK_DIR,
     DATA_DIR,
-    QDRANT_DIR,
     DRAFT_DIR,
     SAVED_DIR,
     CASE_UPLOAD_DIR,
-    EMBEDDING_CACHE_DIR,
 ):
     folder.mkdir(parents=True, exist_ok=True)
 for name in LIBRARY_FOLDERS:

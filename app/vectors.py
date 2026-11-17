@@ -1,13 +1,7 @@
-"""Qdrant vector store.
+"""Qdrant Cloud vector store + Cloud Inference embeddings.
 
-Two modes, chosen by env:
-
-* **Qdrant Cloud** (set QDRANT_URL + QDRANT_API_KEY): embeddings run on Qdrant
-  Cloud Inference. Render never loads a local model — that is what was blowing
-  the free-tier memory limit.
-* **Local** (no URL): Qdrant on disk under data/qdrant + FastEmbed locally.
-
-Indexing is incremental: one file's chunks are added or removed at a time.
+Text is sent to Qdrant with a model name. Qdrant embeds it on their side.
+There is no local embedding model in this process.
 """
 
 from __future__ import annotations
@@ -34,65 +28,43 @@ from qdrant_client.models import Document
 
 from .okf import parse_okf
 from .settings import (
-    EMBEDDING_CACHE_DIR,
     EMBEDDING_MODEL,
     EMBEDDING_VECTOR_SIZE,
     QDRANT_API_KEY,
     QDRANT_COLLECTION,
-    QDRANT_DIR,
     QDRANT_URL,
-    USE_QDRANT_CLOUD,
 )
 
 log = logging.getLogger("lori.vectors")
 
-# Local on-disk Qdrant locks its folder; serialise every call in both modes.
 LOCK = threading.RLock()
 BATCH = 32
 
 
 @lru_cache(maxsize=1)
 def _client() -> QdrantClient:
-    if USE_QDRANT_CLOUD:
-        log.info(
-            "Qdrant Cloud at %s (inference on, model %s, dim %s)",
-            QDRANT_URL,
-            EMBEDDING_MODEL,
-            EMBEDDING_VECTOR_SIZE,
+    if not QDRANT_URL:
+        raise RuntimeError(
+            "Set QDRANT_URL and QDRANT_API_KEY. Embeddings run on Qdrant Cloud Inference "
+            "(no local embedding model)."
         )
-        return QdrantClient(
-            url=QDRANT_URL,
-            api_key=QDRANT_API_KEY or None,
-            cloud_inference=True,
-        )
-    log.info("Local Qdrant at %s", QDRANT_DIR)
-    return QdrantClient(path=str(QDRANT_DIR))
-
-
-@lru_cache(maxsize=1)
-def _local_embedder():
-    """Only used when Qdrant Cloud is not configured."""
-    from fastembed import TextEmbedding
-
-    EMBEDDING_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    log.info("Loading local embedding model %s (cache %s)", EMBEDDING_MODEL, EMBEDDING_CACHE_DIR)
-    return TextEmbedding(model_name=EMBEDDING_MODEL, cache_dir=str(EMBEDDING_CACHE_DIR))
-
-
-def _as_list(vector) -> list[float]:
-    return vector.tolist() if hasattr(vector, "tolist") else list(vector)
+    if not QDRANT_API_KEY:
+        raise RuntimeError("Set QDRANT_API_KEY for your Qdrant Cloud cluster.")
+    log.info(
+        "Qdrant Cloud at %s (model %s, dim %s)",
+        QDRANT_URL,
+        EMBEDDING_MODEL,
+        EMBEDDING_VECTOR_SIZE,
+    )
+    return QdrantClient(
+        url=QDRANT_URL,
+        api_key=QDRANT_API_KEY,
+        cloud_inference=True,
+    )
 
 
 def _document(text: str) -> Document:
     return Document(text=text, model=EMBEDDING_MODEL)
-
-
-def _embed_passages_local(texts: list[str]) -> list[list[float]]:
-    return [_as_list(v) for v in _local_embedder().embed(texts, batch_size=BATCH)]
-
-
-def _embed_query_local(text: str) -> list[float]:
-    return _as_list(next(iter(_local_embedder().query_embed(text))))
 
 
 def _point_id(key: str) -> str:
@@ -103,19 +75,22 @@ def _has_collection() -> bool:
     return QDRANT_COLLECTION in {c.name for c in _client().get_collections().collections}
 
 
-def _ensure_collection(vector_size: int | None = None) -> None:
-    size = vector_size or EMBEDDING_VECTOR_SIZE
+def _ensure_collection() -> None:
     client = _client()
     if _has_collection():
         info = client.get_collection(QDRANT_COLLECTION)
         current = info.config.params.vectors.size  # type: ignore[union-attr]
-        if current == size:
+        if current == EMBEDDING_VECTOR_SIZE:
             return
-        log.warning("Recreating Qdrant collection (dim %s -> %s)", current, size)
+        log.warning(
+            "Recreating Qdrant collection (dim %s -> %s)",
+            current,
+            EMBEDDING_VECTOR_SIZE,
+        )
         client.delete_collection(QDRANT_COLLECTION)
     client.create_collection(
         collection_name=QDRANT_COLLECTION,
-        vectors_config=VectorParams(size=size, distance=Distance.COSINE),
+        vectors_config=VectorParams(size=EMBEDDING_VECTOR_SIZE, distance=Distance.COSINE),
     )
 
 
@@ -163,30 +138,19 @@ def delete_parent(parent: str) -> None:
 
 
 def upsert_chunks(paths: list[Path], progress: Callable[[int, int], None] | None = None) -> int:
-    """Embed OKF chunk files and add them to Qdrant. Returns how many were stored."""
+    """Send chunk text to Qdrant Cloud Inference and store the resulting vectors."""
     docs = [doc for doc in (_doc_from_chunk(p) for p in paths) if doc]
     total = len(docs)
     done = 0
     for start in range(0, total, BATCH):
         batch = docs[start : start + BATCH]
-        if USE_QDRANT_CLOUD:
-            # Cloud Inference: send text + model name; Qdrant embeds on their side.
-            points = [
-                PointStruct(id=_point_id(doc["key"]), vector=_document(doc["body"]), payload=doc)
-                for doc in batch
-            ]
-            with LOCK:
-                _ensure_collection(EMBEDDING_VECTOR_SIZE)
-                _client().upsert(collection_name=QDRANT_COLLECTION, points=points)
-        else:
-            vectors = _embed_passages_local([d["body"] for d in batch])
-            points = [
-                PointStruct(id=_point_id(doc["key"]), vector=vector, payload=doc)
-                for doc, vector in zip(batch, vectors)
-            ]
-            with LOCK:
-                _ensure_collection(len(vectors[0]))
-                _client().upsert(collection_name=QDRANT_COLLECTION, points=points)
+        points = [
+            PointStruct(id=_point_id(doc["key"]), vector=_document(doc["body"]), payload=doc)
+            for doc in batch
+        ]
+        with LOCK:
+            _ensure_collection()
+            _client().upsert(collection_name=QDRANT_COLLECTION, points=points)
         done += len(batch)
         if progress:
             progress(done, total)
@@ -197,7 +161,6 @@ def search(question: str, k: int, kinds: list[str] | None = None) -> list[dict]:
     """Top-k chunks, optionally limited to some kinds (library, firm, statutes, court_rules)."""
     if kinds is not None and not kinds:
         return []
-    query = _document(question) if USE_QDRANT_CLOUD else _embed_query_local(question)
     query_filter = None
     if kinds:
         query_filter = Filter(must=[FieldCondition(key="kind", match=MatchAny(any=list(kinds)))])
@@ -206,7 +169,7 @@ def search(question: str, k: int, kinds: list[str] | None = None) -> list[dict]:
             return []
         hits = _client().query_points(
             collection_name=QDRANT_COLLECTION,
-            query=query,
+            query=_document(question),
             query_filter=query_filter,
             limit=k,
             with_payload=True,

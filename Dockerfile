@@ -13,24 +13,17 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
-    EMBEDDING_MODEL=BAAI/bge-small-en-v1.5 \
-    EMBEDDING_CACHE_DIR=/app/data/models \
-    HF_HOME=/app/data/models \
-    FASTEMBED_CACHE_PATH=/app/data/models
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -r -u 1001 -m -d /home/appuser appuser
+    EMBEDDING_MODEL=sentence-transformers/all-minilm-l6-v2 \
+    EMBEDDING_VECTOR_SIZE=384
+RUN useradd -r -u 1001 -m -d /home/appuser appuser
 COPY --from=builder /install /usr/local
 COPY api.py prompt.md matter.json requirements.txt ./
 COPY app ./app
 COPY static ./static
 COPY samples ./samples
 COPY knowledge ./knowledge
-# Writable dirs for the non-root user. Embeddings should run on Qdrant Cloud Inference
-# (set QDRANT_URL + QDRANT_API_KEY) so Render does not load a local model into RAM.
 RUN mkdir -p knowledge/raw knowledge/firm knowledge/library knowledge/kb knowledge/okf/chunks \
-        data/qdrant data/models data/drafts data/saved data/case_uploads \
+        data/drafts data/saved data/case_uploads \
     && chown -R appuser:appuser /app /home/appuser
 USER appuser
 EXPOSE 8000
