@@ -26,7 +26,7 @@ from qdrant_client.http.models import (
 )
 
 from .okf import parse_okf
-from .settings import EMBEDDING_MODEL, QDRANT_COLLECTION, QDRANT_DIR
+from .settings import EMBEDDING_CACHE_DIR, EMBEDDING_MODEL, QDRANT_COLLECTION, QDRANT_DIR
 
 log = logging.getLogger("lori.vectors")
 
@@ -39,8 +39,9 @@ BATCH = 32
 def _embedder():
     from fastembed import TextEmbedding
 
-    log.info("Loading local embedding model %s", EMBEDDING_MODEL)
-    return TextEmbedding(model_name=EMBEDDING_MODEL)
+    EMBEDDING_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    log.info("Loading local embedding model %s (cache %s)", EMBEDDING_MODEL, EMBEDDING_CACHE_DIR)
+    return TextEmbedding(model_name=EMBEDDING_MODEL, cache_dir=str(EMBEDDING_CACHE_DIR))
 
 
 @lru_cache(maxsize=1)

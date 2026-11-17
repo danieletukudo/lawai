@@ -20,6 +20,7 @@ _LOCAL_EMBEDDING = "BAAI/bge-small-en-v1.5"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "").strip() or _LOCAL_EMBEDDING
 if EMBEDDING_MODEL.startswith("models/"):
     EMBEDDING_MODEL = _LOCAL_EMBEDDING
+EMBEDDING_CACHE_DIR = Path(os.getenv("EMBEDDING_CACHE_DIR", str(ROOT / "data" / "models")))
 LIVE_URL = os.getenv("LIVE_URL", "").rstrip("/")
 FIRM_NAME = os.getenv("FIRM_NAME", "Tanya Freeman Law LLC")
 # Shown under the user's chat bubbles. There is no sign-in yet.
@@ -86,6 +87,7 @@ for folder in (
     DRAFT_DIR,
     SAVED_DIR,
     CASE_UPLOAD_DIR,
+    EMBEDDING_CACHE_DIR,
 ):
     folder.mkdir(parents=True, exist_ok=True)
 for name in LIBRARY_FOLDERS:
