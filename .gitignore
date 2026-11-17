@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+data/
+knowledge/okf/
+knowledge/raw/*
+!knowledge/raw/.gitkeep
+# Case files and reference books stay off git
+knowledge/library/*/*
+!knowledge/library/*/.gitkeep
+knowledge/kb/*/*
+!knowledge/kb/*/.gitkeep
+.DS_Store
+.idea/
+.vscode/
+.pytest_cache/
+*.egg-info/
+From_Note_to_Text_Homework_Lesson2.docx
+*.pdf
+*.zip
+app/ingest_file.py

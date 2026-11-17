@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tanya Freeman Law — AI Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #16254b;
+    --navy-soft: #24345d;
+    --ink: #1b2233;
+    --body: #2a3142;
+    --muted: #7d818b;
+    --faint: #a3a6ad;
+    --line: #e3e0d9;
+    --line-soft: #ecebe6;
+    --side: #f3f1ec;
+    --paper: #ffffff;
+    --desk: #eceae5;
+    --bubble: #e8ecf3;
+    --chip: #efede8;
+    --green: #2f7d55;
+    --amber: #b7791f;
+    --warn-bg: #fdf2d0;
+    --warn-ink: #5c4510;
+    --tag-bg: #fbedc6;
+    --tag-ink: #7a5a12;
+    --red: #b3372f;
+    --sans: "Source Sans 3", "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --serif: "Source Serif 4", "Times New Roman", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--sans); font-size: 13px; line-height: 1.45; color: var(--ink);
+    background: var(--paper); display: grid; grid-template-rows: 54px minmax(0, 1fr);
+    -webkit-font-smoothing: antialiased; overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; flex: none; }
+  .muted { color: var(--muted); }
+
+  /* ---------- top bar ---------- */
+  .top { background: var(--navy); color: #fff; display: flex; align-items: center; padding: 0 16px 0 14px; gap: 12px; }
+  .logo { width: 28px; height: 28px; border-radius: 4px; background: #dfe4ee; color: var(--navy); display: grid; place-items: center;
+    font-family: var(--serif); font-weight: 600; font-size: 10px; letter-spacing: .2px; }
+  .brand { font-family: var(--serif); font-size: 19px; font-weight: 500; letter-spacing: .1px; }
+  .brand-sub { color: #aab3c8; font-size: 12px; display: flex; align-items: center; gap: 10px; margin-left: 2px; }
+  .brand-sub::before { content: ""; width: 16px; height: 1px; background: #6f7b98; }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .pill { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 13px; border-radius: 999px; background: var(--navy-soft); font-size: 12px; color: #dfe4ef; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #4fbf85; }
+  .dot.off { background: #8a93a8; }
+  .top-btn { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 13px; border-radius: 7px; border: 1px solid #4a587c; font-weight: 600; font-size: 12.5px; color: #fff; }
+  .top-btn:hover { background: var(--navy-soft); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #cdbb9e; color: #3c3220; display: grid; place-items: center; font-weight: 700; font-size: 11.5px; }
+
+  /* ---------- layout ---------- */
+  main { display: grid; grid-template-columns: 287px minmax(0, 1.06fr) minmax(0, 1fr); min-height: 0; }
+  main > * { min-height: 0; min-width: 0; }
+
+  /* ---------- left: case + files ---------- */
+  .side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  .side-top { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 14px 10px; }
+  .label { font-weight: 700; font-size: 12.5px; }
+  .case-box { margin-top: 9px; width: 100%; height: 37px; display: flex; align-items: center; gap: 9px; padding: 0 11px; background: #fff;
+    border: 1px solid #d8d5cd; border-radius: 7px; font-weight: 700; font-size: 13.5px; text-align: left; }
+  .case-box svg { color: var(--muted); }
+  .case-line { margin: 9px 0 0 1px; font-size: 11.5px; color: var(--muted); min-height: 16px; }
+  .row-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .files-head { margin: 22px 0 8px; }
+  .small { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+
+  .folder-row { width: 100%; display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 4px 0 2px; border-radius: 6px; text-align: left; }
+  .folder-row:hover { background: #eae7e0; }
+  .folder-row .chev { color: var(--muted); width: 14px; }
+  .folder-row .fold { color: #a08f6e; }
+  .folder-row .name { font-weight: 700; flex: 1; }
+  .folder-row .count { font-size: 11.5px; color: var(--muted); }
+  .folder.drop .folder-row { background: #dfe6f3; outline: 1px dashed #7f93bd; }
+  .files { padding: 1px 0 6px; }
+  .file-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 4px 5px 32px; border-radius: 6px; cursor: pointer; position: relative; }
+  .file-row:hover { background: #eae7e0; }
+  .file-row svg { color: #8a8d95; margin-top: 2px; }
+  .file-row .name { flex: 1; font-size: 12.5px; line-height: 1.3; color: var(--body); overflow-wrap: anywhere; }
+  .file-row .size { font-size: 11px; color: var(--muted); white-space: nowrap; margin-top: 1px; }
+  .file-row .size.warn { color: var(--amber); }
+  .file-row .del { display: none; position: absolute; right: 2px; top: 4px; width: 18px; height: 18px; border-radius: 4px; background: #eae7e0; color: var(--muted); place-items: center; }
+  .file-row:hover .del { display: grid; }
+  .file-row .del:hover { color: var(--red); }
+  .more { display: block; margin: 6px 0 4px 34px; font-size: 11.5px; color: var(--muted); }
+  button.more:hover { color: var(--ink); text-decoration: underline; }
+  .empty-folder { margin: 2px 0 4px 34px; font-size: 11.5px; color: var(--faint); }
+
+  .side-block { border-top: 1px solid var(--line); padding: 13px 14px; }
+  .upload { display: block; width: 100%; text-align: left; }
+  .upload .line1 { display: flex; align-items: center; gap: 9px; }
+  .upload .title { font-weight: 700; font-size: 12.5px; flex: 1; }
+  .bar { height: 3px; border-radius: 3px; background: #dcd9d1; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--navy); border-radius: 3px; transition: width .2s; }
+  .bar.green > i { background: var(--green); }
+  .bar.red > i { background: var(--red); }
+  .bar.busy > i { width: 35% !important; animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+  .upload .bar { margin: 9px 0 8px; }
+  .upload .note { font-size: 11px; color: var(--muted); }
+
+  .kb-row { display: flex; align-items: center; gap: 10px; height: 34px; cursor: pointer; }
+  .kb-row.disabled { cursor: default; }
+  .kb-row .name { font-weight: 700; font-size: 12.5px; flex: 1; }
+  .kb-row.disabled .name { color: var(--muted); }
+  .check { width: 17px; height: 17px; border-radius: 4px; border: 1.5px solid #b9b6ae; background: #fff; display: grid; place-items: center; color: #fff; }
+  .check.on { background: var(--navy); border-color: var(--navy); }
+  .check svg { visibility: hidden; }
+  .check.on svg { visibility: visible; }
+  .status { font-size: 11.5px; font-weight: 700; }
+  .status.ok { color: var(--green); }
+  .status.muted { color: var(--faint); font-weight: 600; }
+  .status.busy { color: var(--amber); }
+
+  /* ---------- center: chat ---------- */
+  .chat { display: flex; flex-direction: column; background: var(--paper); }
+  .chat-head { height: 54px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line-soft); position: relative; }
+  .agent { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 11px 0 7px; border: 1px solid var(--line); border-radius: 8px; }
+  .agent:hover { background: #f7f6f2; }
+  .l-badge { width: 22px; height: 22px; border-radius: 50%; background: var(--navy); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 11px; flex: none; }
+  .agent b { font-size: 13.5px; }
+  .agent .chev { color: var(--muted); margin-left: 2px; }
+  .case-pill { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--bubble); font-weight: 700; font-size: 12.5px; }
+  .case-pill svg { color: #5b6479; }
+  .menu { position: absolute; top: 48px; left: 20px; z-index: 20; width: 250px; background: #fff; border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 30px rgba(20, 28, 50, .14); padding: 5px; }
+  .menu button { display: flex; width: 100%; gap: 9px; align-items: center; padding: 8px 9px; border-radius: 6px; text-align: left; }
+  .menu button:hover { background: #f4f2ee; }
+  .menu button[disabled] { color: var(--faint); cursor: default; background: none; }
+  .menu hr { border: 0; border-top: 1px solid var(--line-soft); margin: 5px 0; }
+
+  .thread { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 20px 6px; }
+  .msg-user { display: flex; flex-direction: column; align-items: flex-end; margin: 0 0 22px; }
+  .bubble { max-width: 83%; background: var(--bubble); border-radius: 10px; padding: 12px 15px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; color: var(--body); }
+  .attach-note { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+  .caption { margin-top: 7px; font-size: 11px; color: var(--muted); }
+  .msg-lori { margin: 0 0 20px; }
+  .lori-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .lori-head .l-badge { width: 26px; height: 26px; font-size: 12px; }
+  .lori-head b { font-size: 13.5px; }
+  .lori-body { padding-left: 36px; }
+  .lori-body > * + * { margin-top: 11px; }
+
+  .card { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; background: #fff; }
+  .card .line1 { display: flex; align-items: center; gap: 9px; }
+  .card .line1 svg { color: var(--green); }
+  .card .title { font-weight: 700; font-size: 12.5px; flex: 1; }
+  .card .bar { margin: 9px 0 8px; }
+  .card .sub { font-size: 11.5px; color: var(--muted); }
+
+  .prose { color: var(--body); line-height: 1.58; }
+  .prose p { margin: 0; }
+  .prose p + p, .prose p + ul, .prose p + ol, .prose ul + p, .prose ol + p, .prose .warn + p, .prose p + .warn { margin-top: 10px; }
+  .prose ul, .prose ol { margin: 0; padding-left: 20px; }
+  .prose li + li { margin-top: 3px; }
+  .prose .h { font-weight: 700; color: var(--ink); }
+  .prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: #f3f1ec; padding: 1px 4px; border-radius: 4px; }
+  .warn { display: flex; gap: 10px; background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 13px; font-size: 12.5px; line-height: 1.5; }
+  .warn svg { color: var(--amber); margin-top: 2px; }
+  .error-note { background: #fbe9e7; color: #7c231d; border-radius: 8px; padding: 10px 13px; font-size: 12.5px; }
+
+  .doc { border: 1px solid var(--line); border-radius: 9px; background: #fff; overflow: hidden; }
+  .doc-top { display: flex; align-items: center; gap: 13px; padding: 13px 14px; }
+  .doc-icon { width: 34px; height: 40px; border: 1px solid #d5d2ca; border-radius: 4px; background: #fbfaf8; display: grid; place-items: center; color: #9a9da5; flex: none; }
+  .doc-top .t { font-weight: 700; font-size: 13.5px; }
+  .doc-top .s { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .doc-top .open { margin-left: auto; font-weight: 700; font-size: 12.5px; color: var(--navy); white-space: nowrap; }
+  .doc-top .open:hover { text-decoration: underline; }
+  .doc-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 11px 14px 12px; border-top: 1px solid var(--line-soft); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid #d5d2ca; border-radius: 7px; background: #fff; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+  .btn:hover { background: #f6f5f1; }
+  .btn svg { color: #4a5266; }
+  .btn.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .btn.primary:hover { background: #1f3163; }
+  .btn.done { color: var(--green); border-color: #b9d8c6; }
+  .btn.done svg { color: var(--green); }
+  .btn[disabled] { opacity: .45; cursor: default; }
+  .btn[disabled]:hover { background: #fff; }
+  .btn.primary[disabled]:hover { background: var(--navy); }
+
+  .used { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); }
+  .chip { background: var(--chip); color: #4d5261; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; }
+
+  .composer-wrap { flex: none; padding: 8px 20px 10px; }
+  .composer { border: 1px solid #d6d3cb; border-radius: 12px; background: #fff; padding: 12px 12px 10px 14px; }
+  .composer:focus-within { border-color: #9aa5c0; box-shadow: 0 0 0 3px rgba(22, 37, 75, .06); }
+  .composer.drop { border-color: var(--navy); background: #f6f8fc; }
+  .composer textarea { display: block; width: 100%; border: 0; outline: 0; resize: none; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--ink); min-height: 44px; max-height: 170px; background: transparent; }
+  .composer textarea::placeholder { color: #8f939c; }
+  .attached { display: inline-flex; align-items: center; gap: 7px; background: var(--bubble); border-radius: 7px; padding: 4px 6px 4px 9px; font-size: 12px; font-weight: 600; margin-bottom: 8px; max-width: 100%; }
+  .attached span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .attached button { color: var(--muted); display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; }
+  .attached button:hover { background: #d6dcea; color: var(--ink); }
+  .composer-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .icon-btn { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; color: #6c7180; }
+  .icon-btn:hover { background: #f1efea; color: var(--ink); }
+  .sources-on { font-size: 11px; color: var(--muted); margin-left: 6px; }
+  .send { margin-left: auto; width: 36px; height: 36px; border-radius: 9px; background: var(--navy); color: #fff; display: grid; place-items: center; }
+  .send:hover { background: #1f3163; }
+  .send[disabled] { opacity: .5; cursor: default; }
+  .hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 9px; }
+
+  /* ---------- right: drafting table ---------- */
+  .table { display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--paper); }
+  .table-head { height: 54px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 16px; }
+  .table-head h2 { margin: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tag { background: var(--tag-bg); color: var(--tag-ink); font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .table-head .actions { margin-left: auto; display: flex; gap: 8px; }
+  .table-sub { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
+  .table-sub b { font-size: 12px; }
+  .table-sub span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .viewer { flex: 1; min-height: 0; overflow-y: auto; background: var(--desk); padding: 24px 26px; }
+  .page { display: block; width: 100%; background: #fff; box-shadow: 0 1px 2px rgba(30, 30, 40, .12), 0 8px 22px rgba(30, 30, 40, .10); margin: 0 auto 22px; max-width: 760px; }
+  a.page-link { display: block; }
+  .page.blank { aspect-ratio: 8.5 / 11; display: grid; place-items: center; text-align: center; color: var(--faint); padding: 40px; font-size: 13px; line-height: 1.6; }
+  .table-foot { flex: none; height: 46px; display: flex; align-items: center; gap: 14px; padding: 0 16px; border-top: 1px solid var(--line); font-size: 12px; }
+  .table-foot .kind { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34%; }
+  .table-foot .bar { flex: 1; min-width: 30px; }
+  .table-foot .pages { font-weight: 700; white-space: nowrap; }
+  .table-foot .pages.over { color: var(--red); }
+  .table-foot .fmt { display: flex; align-items: center; gap: 7px; color: var(--green); white-space: nowrap; padding-left: 14px; border-left: 1px solid var(--line); height: 100%; }
+  .spacer { flex: 1; }
+
+  /* ---------- toast + modal ---------- */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: #1c2438; color: #fff; padding: 10px 16px; border-radius: 9px; font-size: 12.5px; max-width: 620px; box-shadow: 0 8px 28px rgba(0, 0, 0, .25); z-index: 60; opacity: 0; pointer-events: none; transition: opacity .18s; }
+  .toast.show { opacity: 1; }
+  .veil { position: fixed; inset: 0; background: rgba(20, 26, 44, .38); display: grid; place-items: center; z-index: 50; }
+  .modal { width: min(560px, 92vw); max-height: 82vh; overflow: auto; background: #fff; border-radius: 12px; padding: 22px 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); }
+  .modal h3 { margin: 0 0 4px; font-size: 16px; }
+  .modal ul { margin: 12px 0 0; padding-left: 20px; line-height: 1.7; }
+  .modal .firm { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-soft); white-space: pre-wrap; font-size: 12.5px; color: var(--body); }
+  .modal .close { margin-top: 18px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo">TFL</div>
+  <div class="brand">Tanya Freeman Law</div>
+  <div class="brand-sub">AI Workspace</div>
+  <div class="top-right">
+    <div class="pill"><i class="dot" id="leapDot"></i><span id="leapText"></span></div>
+    <button class="top-btn" id="rulesBtn"><span data-i="shield"></span>Formatting rules</button>
+    <div class="avatar" id="avatar"></div>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: the case and its folders. Files dropped here are indexed (OKF + RAG) on upload. -->
+  <aside class="side">
+    <div class="side-top">
+      <div class="label">Select Case</div>
+      <button class="case-box" id="caseBox"><span data-i="search"></span><span id="caseName"></span></button>
+      <div class="case-line" id="caseLine"></div>
+      <div class="row-head files-head"><span class="label">Files</span><span class="small" id="filesLabel"></span></div>
+      <div id="tree"></div>
+    </div>
+    <div class="side-block">
+      <button class="upload" id="uploadBlock" title="Choose files to add to the selected folder"></button>
+      <input type="file" id="filePicker" multiple accept=".pdf,.docx,.txt,.md" hidden>
+    </div>
+    <div class="side-block">
+      <div class="row-head" style="margin-bottom:5px"><span class="label">Knowledge base</span><span class="small" id="kbLabel"></span></div>
+      <div id="kb"></div>
+    </div>
+  </aside>
+
+  <!-- CENTER: chat with Lori. The paperclip attaches the case file for this turn only. -->
+  <section class="chat">
+    <div class="chat-head">
+      <button class="agent" id="agentBtn"><span class="l-badge">L</span><b>Lori</b><span class="small">Drafting</span><span class="chev" data-i="chevDown"></span></button>
+      <button class="case-pill" id="casePill"><span data-i="at"></span><span id="casePillName"></span></button>
+      <div class="menu" id="agentMenu" hidden>
+        <button disabled><span class="l-badge">L</span><span><b>Lori</b> &nbsp;Drafting (active)</span></button>
+        <button disabled>Jim &nbsp;Attorney drafting, not built yet</button>
+        <button disabled>Boz &nbsp;Marketing, not built yet</button>
+        <button disabled>Lois &nbsp;Research, not built yet</button>
+        <hr>
+        <button id="newChat">New conversation</button>
+      </div>
+    </div>
+    <div class="thread" id="thread"></div>
+    <div class="composer-wrap">
+      <div class="composer" id="composer">
+        <div id="attached"></div>
+        <textarea id="input" rows="2" placeholder="Give Lori detailed drafting instructions. Shift + Enter for a new line."></textarea>
+        <div class="composer-row">
+          <button class="icon-btn" id="clipBtn" title="Attach the case file for this message (sent to Lori for this turn, not stored in the folders)"><span data-i="clip"></span></button>
+          <button class="icon-btn" id="atBtn" title="Switch case"><span data-i="at"></span></button>
+          <span class="sources-on" id="sourcesOn"></span>
+          <button class="send" id="sendBtn" title="Send"><span data-i="arrowUp"></span></button>
+        </div>
+        <input type="file" id="casePicker" accept=".pdf,.docx,.txt,.md" hidden>
+      </div>
+      <div class="hint">Drag files from the case file to reference them. Type @ to switch case.</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: the Drafting Table. Shows the real PDF built from Lori's markdown. -->
+  <section class="table">
+    <div class="table-head">
+      <h2 id="draftTitle"></h2><span class="tag" id="draftTag"></span>
+      <div class="actions">
+        <button class="btn" id="wordBtn"><span data-i="download"></span>Word</button>
+        <button class="btn" id="pdfBtn"><span data-i="download"></span>PDF</button>
+        <button class="btn primary" id="approveBtn"></button>
+      </div>
+    </div>
+    <div class="table-sub"><b id="draftStrong"></b><span id="draftNote"></span></div>
+    <div class="viewer" id="viewer"></div>
+    <div class="table-foot" id="draftFoot"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<div class="veil" id="veil" hidden><div class="modal" id="modal"></div></div>
+
+<script>
+const SAMPLE = new URLSearchParams(location.search).has('sample');
+const SAMPLE_NOTE = 'This is the sample view from the design. Open the page without ?sample=1 for the live workspace.';
+const $ = (id) => document.getElementById(id);
+
+const ICON = {
+  search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>',
+  chevDown: '<path d="m4 6 4 4 4-4"/>',
+  chevRight: '<path d="m6 4 4 4-4 4"/>',
+  folder: '<path d="M1.8 4.2c0-.7.5-1.2 1.2-1.2h3l1.4 1.6H13c.7 0 1.2.5 1.2 1.2v6c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2z"/>',
+  file: '<path d="M9.2 1.8H4.4c-.6 0-1 .4-1 1v10.4c0 .6.4 1 1 1h7.2c.6 0 1-.4 1-1V5.2z"/><path d="M9.2 1.8v3.4h3.4"/>',
+  upload: '<path d="M8 10.5V2.5M4.8 5.4 8 2.2l3.2 3.2M2.5 10.2v2.3c0 .6.4 1 1 1h9c.6 0 1-.4 1-1v-2.3"/>',
+  download: '<path d="M8 2.2v8M4.8 7.3 8 10.5l3.2-3.2M2.5 10.2v2.3c0 .6.4 1 1 1h9c.6 0 1-.4 1-1v-2.3"/>',
+  check: '<path d="m3 8.4 3.2 3.2L13 4.8"/>',
+  alert: '<path d="M8 2.2 1.6 13.2h12.8z"/><path d="M8 6.4v3.2M8 11.4v.2"/>',
+  clock: '<circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.2 1.4"/>',
+  scissors: '<circle cx="4" cy="4.2" r="1.9"/><circle cx="4" cy="11.8" r="1.9"/><path d="M5.6 5.4 14 12M5.6 10.6 14 4"/>',
+  shield: '<path d="M8 1.8 2.8 3.6v4.1c0 3.1 2.1 5.4 5.2 6.5 3.1-1.1 5.2-3.4 5.2-6.5V3.6z"/>',
+  shieldCheck: '<path d="M8 1.8 2.8 3.6v4.1c0 3.1 2.1 5.4 5.2 6.5 3.1-1.1 5.2-3.4 5.2-6.5V3.6z"/><path d="m5.6 8 1.7 1.7 3.1-3.2"/>',
+  clip: '<path d="m13.4 7.4-5.5 5.5a3.2 3.2 0 0 1-4.6-4.6l5.8-5.8a2.2 2.2 0 0 1 3.1 3.1l-5.7 5.7a1.1 1.1 0 0 1-1.6-1.6l5.2-5.2"/>',
+  at: '<circle cx="8" cy="8" r="2.6"/><path d="M10.6 5.4v3.4c0 1 .7 1.7 1.6 1.7 1 0 1.8-.9 1.8-2.5A6 6 0 1 0 8 14c1.2 0 2.3-.3 3.2-.9"/>',
+  arrowUp: '<path d="M8 13V3.2M3.8 7.2 8 3l4.2 4.2"/>',
+  x: '<path d="m4 4 8 8M12 4l-8 8"/>',
+  user: '<circle cx="8" cy="5.6" r="2.6"/><path d="M3 13.4c.6-2.3 2.6-3.7 5-3.7s4.4 1.4 5 3.7"/>',
+  lines: '<path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4.5"/>',
+};
+const icon = (name, size = 16, sw = 1.5) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
+document.querySelectorAll('[data-i]').forEach((el) => { el.outerHTML = icon(el.dataset.i, el.dataset.i === 'chevDown' ? 14 : 16); });
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- state ---------- */
+let S = null;                       // the workspace, exactly as the server reports it
+const ui = {
+  open: new Set(['exhibits']),      // expanded folders
+  selected: 'exhibits',             // where the next upload goes
+  showAll: new Set(),               // folders showing every file
+  pending: null,                    // message waiting on Lori
+  failed: null,                     // last turn's error
+  attach: null,                     // case file attached to the next message
+  upload: null,                     // upload progress
+  busy: false,
+};
+
+async function call(url, options) {
+  const res = await fetch(url, options);
+  let data = null;
+  try { data = await res.json(); } catch (_) { /* not json */ }
+  if (!res.ok) throw new Error((data && data.detail && (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))) || `Request failed (${res.status})`);
+  return data;
+}
+
+let toastTimer = null;
+function toast(text, ms = 5200) {
+  const el = $('toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+const blocked = () => { if (SAMPLE) toast(SAMPLE_NOTE); return SAMPLE; };
+
+/* ---------- chat text: a small markdown reader ---------- */
+function inlineMd(s) {
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^\w*])\*(?!\s)(.+?)\*(?![\w*])/g, '$1<em>$2</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+const warnBox = (text) => `<div class="warn">${icon('alert')}<div>${inlineMd(text)}</div></div>`;
+function md(text) {
+  let html = '', para = [], list = null, warn = null;
+  const flush = () => {
+    if (para.length) { html += `<p>${inlineMd(para.join(' '))}</p>`; para = []; }
+    if (list) { html += `<${list.tag}>${list.items.map((i) => `<li>${inlineMd(i)}</li>`).join('')}</${list.tag}>`; list = null; }
+    if (warn !== null) { html += warnBox(warn); warn = null; }
+  };
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.trimEnd();
+    let m;
+    if ((m = line.match(/^>\s*\[!(?:WARNING|CAUTION|IMPORTANT)\]\s*(.*)$/i))) { flush(); warn = m[1]; continue; }
+    if ((m = line.match(/^>\s?(.*)$/))) { if (warn !== null) warn += ' ' + m[1]; else para.push(m[1]); continue; }
+    if (!line.trim()) { flush(); continue; }
+    if (warn !== null) flush();
+    if ((m = line.match(/^#{1,6}\s+(.*)$/))) { flush(); html += `<p class="h">${inlineMd(m[1])}</p>`; continue; }
+    if ((m = line.match(/^\s*[-*]\s+(.*)$/))) { if (para.length || (list && list.tag !== 'ul')) flush(); list = list || { tag: 'ul', items: [] }; list.items.push(m[1]); continue; }
+    if ((m = line.match(/^\s*\d+[.)]\s+(.*)$/))) { if (para.length || (list && list.tag !== 'ol')) flush(); list = list || { tag: 'ol', items: [] }; list.items.push(m[1]); continue; }
+    if (list) flush();
+    para.push(line.trim());
+  }
+  flush();
+  return html;
+}
+const clock = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+
+/* ---------- left panel ---------- */
+function renderSide() {
+  $('leapText').textContent = S.leap.text;
+  $('leapDot').className = 'dot' + (S.leap.ok ? '' : ' off');
+  $('avatar').innerHTML = S.user.initials ? esc(S.user.initials) : icon('user', 16);
+  $('avatar').title = S.user.name;
+  $('caseName').textContent = S.matter.name;
+  $('casePillName').textContent = S.matter.name;
+  $('caseLine').textContent = S.matter.line;
+  $('filesLabel').textContent = S.files_label;
+
+  $('tree').innerHTML = S.folders.map((f) => {
+    const open = ui.open.has(f.id);
+    const all = ui.showAll.has(f.id) || f.files.length <= 5;
+    const shown = all ? f.files : f.files.slice(0, 4);
+    const hidden = (f.more || 0) + (f.files.length - shown.length);
+    const rows = shown.map((x) => `
+      <div class="file-row" draggable="true" data-folder="${f.id}" data-name="${esc(x.name)}" title="${esc(x.hint || x.name)}">
+        ${icon('file', 14, 1.3)}<span class="name">${esc(x.name)}</span>
+        <span class="size${x.readable ? '' : ' warn'}">${x.readable ? esc(x.size) : 'no text'}</span>
+        ${SAMPLE ? '' : `<button class="del" title="Remove from the case folders">${icon('x', 11, 1.8)}</button>`}
+      </div>`).join('');
+    const more = hidden ? (f.more ? `<span class="more">${hidden} more files</span>` : `<button class="more" data-more="${f.id}">${hidden} more files</button>`) : '';
+    const empty = !f.files.length && !f.more && open ? '<div class="empty-folder">No files yet. Drop files here.</div>' : '';
+    return `<div class="folder" data-id="${f.id}">
+      <button class="folder-row">
+        <span class="chev">${icon(open ? 'chevDown' : 'chevRight', 14)}</span><span class="fold">${icon('folder', 16, 1.4)}</span>
+        <span class="name">${esc(f.label)}</span><span class="count">${f.count}</span>
+      </button>
+      ${open ? `<div class="files">${rows}${more}${empty}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  renderUpload();
+
+  $('kbLabel').textContent = S.kb.label;
+  $('sourcesOn').textContent = S.kb.composer;
+  $('kb').innerHTML = S.kb.sources.map((k) => `
+    <div class="kb-row${k.disabled ? ' disabled' : ''}" data-kb="${k.id}" title="${esc(k.hint)}">
+      <span class="check${k.checked ? ' on' : ''}">${icon('check', 11, 2.2)}</span>
+      <span class="name">${esc(k.label)}</span><span class="status ${k.tone}">${esc(k.status)}</span>
+    </div>`).join('');
+}
+
+function renderUpload() {
+  const fixed = S.upload.title ? S.upload : null;          // the sample view carries a fixed state
+  const live = ui.upload;
+  const folder = S.folders.find((f) => f.id === ui.selected) || S.folders[0];
+  const view = live || fixed || { title: `Upload to ${folder.label}`, right: `${S.upload.batch_mb} MB per batch`, pct: 0 };
+  $('uploadBlock').innerHTML = `
+    <div class="line1">${icon('upload', 16, 1.5)}<span class="title">${esc(view.title)}</span><span class="small">${esc(view.right || '')}</span></div>
+    <div class="bar${view.busy ? ' busy' : ''}"><i style="width:${view.pct || 0}%"></i></div>
+    <div class="note">Batches go up one at a time, ${S.upload.batch_mb} MB each at most.</div>`;
+}
+
+/* ---------- chat ---------- */
+function loriBlock(m) {
+  const parts = [];
+  for (const c of m.cards || []) {
+    parts.push(`<div class="card">
+      <div class="line1">${c.busy ? '' : icon('check', 15, 1.9)}<span class="title">${esc(c.title)}</span><span class="small">${esc(c.count || '')}</span></div>
+      <div class="bar green${c.busy ? ' busy' : ''}"><i style="width:${c.pct ?? 0}%"></i></div>
+      <div class="sub">${esc(c.sub || '')}</div></div>`);
+  }
+  if (m.text) parts.push(`<div class="prose">${md(m.text)}</div>`);
+  for (const w of m.warnings || []) parts.push(warnBox(w));
+  if (m.error) parts.push(`<div class="error-note">${esc(m.error)}</div>`);
+  if (m.doc) {
+    parts.push(`<div class="doc" data-doc="${esc(m.doc.id)}">
+      <div class="doc-top">
+        <div class="doc-icon">${icon('lines', 20, 1.2)}</div>
+        <div><div class="t">${esc(m.doc.title)}</div><div class="s">${esc(m.doc.sub)}</div></div>
+        <button class="open" data-act="open">Open in Drafting Table</button>
+      </div>
+      <div class="doc-actions">
+        <button class="btn${m.doc.saved ? ' done' : ''}" data-act="save">${icon(m.doc.saved ? 'check' : 'upload', 15)}${m.doc.saved ? 'Saved' : 'Save to LEAP'}</button>
+        <button class="btn" data-act="billing">${icon('clock', 15)}Generate Billing Entry</button>
+        <button class="btn" data-act="split">${icon('scissors', 15)}Split for Court Upload</button>
+      </div></div>`);
+  }
+  if ((m.used || []).length) parts.push(`<div class="used"><span>Used</span>${m.used.map((u) => `<span class="chip">${esc(u)}</span>`).join('')}</div>`);
+  return `<div class="msg-lori"><div class="lori-head"><span class="l-badge">L</span><b>Lori</b><span class="small">Drafting</span></div><div class="lori-body">${parts.join('')}</div></div>`;
+}
+function userBlock(m) {
+  const file = m.case_file ? `<div class="attach-note">${icon('clip', 13)}${esc(m.case_file.name)}${m.case_file.total ? `, ${m.case_file.used} of ${m.case_file.total} parts sent to Lori` : ''}</div>` : '';
+  const caption = m.caption || [m.name, clock(m.time)].filter(Boolean).join(' \u00b7 ');
+  return `<div class="msg-user"><div class="bubble">${esc(m.text)}</div>${file}<div class="caption">${esc(caption)}</div></div>`;
+}
+function renderThread(toBottom) {
+  const items = S.thread.map((m) => (m.role === 'user' ? userBlock(m) : loriBlock(m)));
+  if (!S.thread.length && !ui.pending) {
+    items.push(loriBlock({ text: 'I am Lori. Add the case documents to the folders on the left, attach the case file with the paperclip, and tell me what to prepare. Drafts open on the right as a PDF for attorney review.' }));
+  }
+  if (ui.pending) {
+    items.push(userBlock({ text: ui.pending.text, name: S.user.name, time: ui.pending.time, case_file: ui.pending.file ? { name: ui.pending.file } : null }));
+    items.push(loriBlock({ cards: [{ title: 'Reading the case files', count: '', busy: true, sub: 'Checking the folders, the knowledge base and anything you attached.' }] }));
+  }
+  if (ui.failed) items.push(loriBlock({ error: ui.failed }));
+  const el = $('thread');
+  el.innerHTML = items.join('');
+  if (toBottom) el.scrollTop = el.scrollHeight;
+}
+
+/* ---------- drafting table ---------- */
+function renderDraft(resetScroll) {
+  const d = S.draft;
+  $('draftTitle').textContent = d ? d.title : 'Drafting Table';
+  $('draftTag').textContent = d ? d.tag : '';
+  $('draftTag').hidden = !d;
+  $('approveBtn').textContent = d ? d.approve_label : 'Approve draft';
+  for (const id of ['wordBtn', 'pdfBtn', 'approveBtn']) $(id).disabled = !d;
+  $('draftStrong').textContent = d ? d.strong : 'No draft yet';
+  $('draftNote').textContent = d ? d.note : 'Ask Lori for an index, chronology, certification or letter.';
+  const viewer = $('viewer');
+  viewer.innerHTML = d
+    ? d.page_urls.map((u, i) => `<a class="page-link" href="${esc(d.pdf_url)}" target="_blank" title="Open the PDF"><img class="page" src="${esc(u)}" alt="Page ${i + 1}"></a>`).join('')
+    : '<div class="page blank">Drafts Lori writes appear here as a PDF,<br>laid out to the firm formatting rules.</div>';
+  if (resetScroll) viewer.scrollTop = 0;
+  $('draftFoot').innerHTML = d
+    ? `<span class="kind">${esc(d.kind)}</span>
+       ${d.pct === null || d.pct === undefined ? '<span class="spacer"></span>' : `<div class="bar${d.over ? ' red' : ''}"><i style="width:${d.pct}%"></i></div>`}
+       <span class="pages${d.over ? ' over' : ''}">${esc(d.pages_label)}</span>
+       <span class="fmt">${icon('shieldCheck', 16, 1.5)}${esc(d.formatting)}</span>`
+    : '<span class="muted">No document open</span>';
+}
+
+function apply(next, opts = {}) {
+  const draftChanged = !S || (S.draft && S.draft.id) !== (next.draft && next.draft.id);
+  S = next;
+  renderSide();
+  renderThread(opts.toBottom);
+  renderDraft(draftChanged);
+}
+
+/* ---------- sending a message ---------- */
+function setAttach(file) {
+  ui.attach = file || null;
+  $('attached').innerHTML = file ? `<div class="attached">${icon('clip', 13)}<span>${esc(file.name)}</span><button title="Remove" id="dropAttach">${icon('x', 11, 1.8)}</button></div>` : '';
+}
+async function send() {
+  if (blocked() || ui.busy) return;
+  const input = $('input');
+  const text = input.value.trim();
+  if (!text && !ui.attach) return;
+  const file = ui.attach;
+  const body = new FormData();
+  body.append('message', text);
+  if (file) body.append('case_file', file);
+  ui.busy = true; ui.failed = null;
+  ui.pending = { text: text || 'Use the attached case file.', file: file ? file.name : null, time: new Date().toISOString() };
+  input.value = ''; autosize(); setAttach(null);
+  $('sendBtn').disabled = true;
+  renderThread(true);
+  try {
+    const next = await call('/chat', { method: 'POST', body });
+    ui.pending = null;
+    apply(next, { toBottom: true });
+  } catch (err) {
+    ui.pending = null;
+    ui.failed = err.message;
+    input.value = text; autosize(); setAttach(file);
+    renderThread(true);
+  } finally {
+    ui.busy = false;
+    $('sendBtn').disabled = false;
+  }
+}
+function autosize() { const t = $('input'); t.style.height = 'auto'; t.style.height = Math.min(170, t.scrollHeight) + 'px'; }
+
+/* ---------- uploading into a folder (indexes on arrival) ---------- */
+const OK_TYPES = ['.pdf', '.docx', '.txt', '.md'];
+const mb = (bytes) => (bytes / 1048576).toFixed(1);
+function sendBatch(folder, files, onProgress, onSent) {
+  return new Promise((resolve, reject) => {
+    const body = new FormData();
+    body.append('folder', folder);
+    for (const f of files) body.append('files', f, f.name);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/library/upload');
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.upload.onload = onSent;
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (_) { /* not json */ }
+      if (xhr.status >= 200 && xhr.status < 300 && data) resolve(data);
+      else reject(new Error((data && data.detail) || `Upload failed (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error('Upload failed. Is the server running?'));
+    xhr.send(body);
+  });
+}
+async function uploadFiles(fileList, folderId) {
+  if (blocked()) return;
+  if (ui.upload) return toast('An upload is already running.');
+  const folder = S.folders.find((f) => f.id === folderId) || S.folders[0];
+  const limit = S.upload.batch_mb * 1048576;
+  const good = [], skipped = [];
+  for (const f of fileList) {
+    const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    if (!OK_TYPES.includes(ext)) skipped.push(`${f.name} (type not supported)`);
+    else if (f.size > limit) skipped.push(`${f.name} (over ${S.upload.batch_mb} MB)`);
+    else good.push(f);
+  }
+  const batches = [];
+  for (const f of good) {
+    const last = batches[batches.length - 1];
+    if (last && last.size + f.size <= limit) { last.files.push(f); last.size += f.size; }
+    else batches.push({ files: [f], size: f.size });
+  }
+  const notes = [];
+  ui.open.add(folder.id); ui.selected = folder.id;
+  try {
+    for (let i = 0; i < batches.length; i++) {
+      const b = batches[i], label = `batch ${i + 1} of ${batches.length}`;
+      ui.upload = { title: `Uploading ${label}`, right: `0.0 / ${mb(b.size)} MB`, pct: 0 };
+      renderUpload();
+      const next = await sendBatch(folder.id, b.files,
+        (loaded, total) => { ui.upload = { title: `Uploading ${label}`, right: `${mb(Math.min(loaded, b.size))} / ${mb(b.size)} MB`, pct: Math.round(100 * loaded / total) }; renderUpload(); },
+        () => { ui.upload = { title: `Indexing ${label}`, right: `${mb(b.size)} MB`, pct: 100, busy: true }; renderUpload(); });
+      notes.push(...(next.upload_warnings || []));
+      S = next; renderSide();
+    }
+    if (good.length) {
+      ui.upload = { title: `Added ${good.length} ${good.length === 1 ? 'file' : 'files'} to ${folder.label}`, right: 'Indexed', pct: 100 };
+      renderUpload();
+      setTimeout(() => { ui.upload = null; renderUpload(); }, 4000);
+    } else ui.upload = null;
+  } catch (err) {
+    ui.upload = null; renderUpload();
+    notes.push(err.message);
+  }
+  const all = [...skipped.map((s) => `Skipped ${s}`), ...notes];
+  if (all.length) toast(all.slice(0, 3).join('  ') + (all.length > 3 ? `  (+${all.length - 3} more)` : ''), 9000);
+}
+
+/* ---------- events ---------- */
+$('tree').addEventListener('click', async (e) => {
+  const del = e.target.closest('.del');
+  const row = e.target.closest('.file-row');
+  const more = e.target.closest('[data-more]');
+  const folder = e.target.closest('.folder');
+  if (del && row) {
+    if (!confirm(`Remove "${row.dataset.name}" from the case folders? Lori will no longer be able to read it.`)) return;
+    try { S = await call(`/library/file?folder=${row.dataset.folder}&name=${encodeURIComponent(row.dataset.name)}`, { method: 'DELETE' }); renderSide(); }
+    catch (err) { toast(err.message); }
+  } else if (row) {
+    if (blocked()) return;
+    window.open(`/library/file?folder=${row.dataset.folder}&name=${encodeURIComponent(row.dataset.name)}`, '_blank');
+  } else if (more) {
+    ui.showAll.add(more.dataset.more); renderSide();
+  } else if (folder && e.target.closest('.folder-row')) {
+    const id = folder.dataset.id;
+    if (ui.open.has(id)) ui.open.delete(id); else ui.open.add(id);
+    ui.selected = id;
+    renderSide();
+  }
+});
+$('tree').addEventListener('dragstart', (e) => {
+  const row = e.target.closest('.file-row');
+  if (row) e.dataTransfer.setData('text/plain', `"${row.dataset.name}" `);
+});
+$('tree').addEventListener('dragover', (e) => {
+  const folder = e.target.closest('.folder');
+  if (!folder || !e.dataTransfer.types.includes('Files')) return;
+  e.preventDefault();
+  document.querySelectorAll('.folder.drop').forEach((el) => el !== folder && el.classList.remove('drop'));
+  folder.classList.add('drop');
+});
+$('tree').addEventListener('dragleave', (e) => { const f = e.target.closest('.folder'); if (f && !f.contains(e.relatedTarget)) f.classList.remove('drop'); });
+$('tree').addEventListener('drop', (e) => {
+  const folder = e.target.closest('.folder');
+  if (!folder || !e.dataTransfer.files.length) return;
+  e.preventDefault();
+  folder.classList.remove('drop');
+  uploadFiles([...e.dataTransfer.files], folder.dataset.id);
+});
+$('uploadBlock').addEventListener('click', () => { if (!blocked() && !ui.upload) $('filePicker').click(); });
+$('filePicker').addEventListener('change', (e) => { const files = [...e.target.files]; e.target.value = ''; if (files.length) uploadFiles(files, ui.selected); });
+
+$('kb').addEventListener('click', async (e) => {
+  const row = e.target.closest('[data-kb]');
+  if (!row || blocked()) return;
+  const k = S.kb.sources.find((s) => s.id === row.dataset.kb);
+  if (k.disabled) return toast(`${k.label}: nothing is loaded for this source yet.`);
+  const body = new FormData();
+  body.append('source', k.id); body.append('enabled', String(!k.checked));
+  try { S = await call('/kb/toggle', { method: 'POST', body }); renderSide(); } catch (err) { toast(err.message); }
+});
+
+$('thread').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const id = btn.closest('[data-doc]').dataset.doc, act = btn.dataset.act;
+  if (act === 'billing') return toast('Billing entries are not built yet.');
+  if (act === 'split') return toast(SAMPLE ? SAMPLE_NOTE : `${S.court_split} Building the volume files is not built yet.`, 9000);
+  if (blocked()) return;
+  try {
+    if (act === 'open') apply(await call(`/drafts/${id}/open`, { method: 'POST' }));
+    if (act === 'save') {
+      apply(await call(`/drafts/${id}/save`, { method: 'POST' }));
+      toast('Saved and opened in the Drafting Table. LEAP is not connected yet, so the PDF was filed in data/saved.', 8000);
+    }
+  } catch (err) { toast(err.message); }
+});
+
+$('sendBtn').addEventListener('click', send);
+$('input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$('input').addEventListener('input', autosize);
+$('clipBtn').addEventListener('click', () => { if (!blocked()) $('casePicker').click(); });
+$('casePicker').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) setAttach(f); });
+$('attached').addEventListener('click', (e) => { if (e.target.closest('#dropAttach')) setAttach(null); });
+const composer = $('composer');
+composer.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); composer.classList.add('drop'); } });
+composer.addEventListener('dragleave', (e) => { if (!composer.contains(e.relatedTarget)) composer.classList.remove('drop'); });
+composer.addEventListener('drop', (e) => {
+  composer.classList.remove('drop');
+  if (!e.dataTransfer.files.length) return;          // dragged file names from the tree drop in as text
+  e.preventDefault();
+  if (!blocked()) setAttach(e.dataTransfer.files[0]);
+});
+
+const oneCase = () => toast(SAMPLE ? SAMPLE_NOTE : 'One case is set up so far. Its details are in bot/matter.json.');
+$('caseBox').addEventListener('click', oneCase);
+$('casePill').addEventListener('click', oneCase);
+$('atBtn').addEventListener('click', oneCase);
+$('agentBtn').addEventListener('click', (e) => { e.stopPropagation(); $('agentMenu').hidden = !$('agentMenu').hidden; });
+document.addEventListener('click', () => { $('agentMenu').hidden = true; });
+$('newChat').addEventListener('click', async () => {
+  if (blocked()) return;
+  if (!confirm('Start a new conversation? The chat is cleared. Files, drafts and matter notes are kept.')) return;
+  try { ui.failed = null; apply(await call('/thread/reset', { method: 'POST' }), { toBottom: true }); } catch (err) { toast(err.message); }
+});
+
+$('wordBtn').addEventListener('click', () => toast('Word export is not built yet. The PDF button downloads the real file.'));
+$('pdfBtn').addEventListener('click', () => { if (S.draft) window.location.href = `${S.draft.pdf_url}?download=1`; });
+$('approveBtn').addEventListener('click', () => toast('Approval needs an attorney sign-in, which is not built yet. Nothing was approved.'));
+
+$('rulesBtn').addEventListener('click', async () => {
+  try {
+    const r = await call('/formatting-rules');
+    $('modal').innerHTML = `<h3>Formatting rules</h3><div class="muted">Applied to every PDF on the Drafting Table.</div>
+      <ul>${r.applied.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      ${r.firm_text ? `<div class="firm">${esc(r.firm_text)}</div>` : ''}
+      <button class="btn close" id="closeModal">Close</button>`;
+    $('veil').hidden = false;
+  } catch (err) { toast(err.message); }
+});
+$('veil').addEventListener('click', (e) => { if (e.target.id === 'veil' || e.target.id === 'closeModal') $('veil').hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('veil').hidden = true; $('agentMenu').hidden = true; } });
+
+/* ---------- start ---------- */
+async function start() {
+  try { apply(await call('/workspace' + (SAMPLE ? '?sample=1' : '')), { toBottom: true }); }
+  catch (err) { $('thread').innerHTML = `<div class="error-note">Could not load the workspace: ${esc(err.message)}</div>`; }
+}
+start();
+// While a knowledge-base book is still indexing, keep its status fresh.
+setInterval(async () => {
+  if (SAMPLE || !S || ui.busy || ui.upload || !S.kb.sources.some((k) => k.tone === 'busy')) return;
+  try { const next = await call('/workspace'); S.kb = next.kb; S.folders = next.folders; S.files_label = next.files_label; renderSide(); } catch (_) { /* next tick */ }
+}, 4000);
+</script>
+</body>
+</html>

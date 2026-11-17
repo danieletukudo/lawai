@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+FROM python:3.11-slim-bookworm AS builder
+WORKDIR /app
+ENV PIP_NO_CACHE_DIR=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --prefix=/install -r requirements.txt
+
+FROM python:3.11-slim-bookworm
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -u 1001 appuser
+COPY --from=builder /install /usr/local
+COPY api.py prompt.md matter.json requirements.txt ./
+COPY app ./app
+COPY static ./static
+COPY samples ./samples
+COPY knowledge ./knowledge
+RUN mkdir -p knowledge/raw knowledge/firm knowledge/library knowledge/kb knowledge/okf/chunks data/qdrant \
+    && chown -R appuser:appuser /app
+USER appuser
+EXPOSE 8000
+CMD ["sh", "-c", "exec uvicorn api:app --host 0.0.0.0 --port ${PORT}"]

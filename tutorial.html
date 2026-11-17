@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Build this RAG chatbot with LangGraph, GPT, and OKF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=Source+Sans+3:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root { --ink: rgba(0,0,0,.84); --muted: rgba(0,0,0,.54); --faint: rgba(0,0,0,.4); --line: rgba(0,0,0,.08); --tag: rgba(0,0,0,.05); --code-bg: #f7f7f7; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: #fff; color: var(--ink); font-family: "Source Serif 4", Georgia, Cambria, "Times New Roman", Times, serif; font-size: 21px; line-height: 1.58; letter-spacing: -0.003em; }
+    .top { border-bottom: 1px solid var(--line); font-family: "Source Sans 3", system-ui, sans-serif; font-size: 14px; }
+    .top-inner { max-width: 1192px; margin: 0 auto; padding: 14px 24px; display: flex; justify-content: space-between; color: var(--muted); }
+    .article { max-width: 680px; margin: 0 auto; padding: 48px 24px 120px; }
+    .tags { font-family: "Source Sans 3", system-ui, sans-serif; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+    .tags span { background: var(--tag); border-radius: 99px; padding: 6px 12px; font-size: 13px; }
+    h1 { font-size: 42px; line-height: 1.15; letter-spacing: -0.03em; font-weight: 700; margin: 0 0 16px; }
+    .dek { font-size: 22px; color: var(--muted); line-height: 1.4; margin: 0 0 28px; }
+    .byline { display: flex; align-items: center; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 36px; font-family: "Source Sans 3", system-ui, sans-serif; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; background: #1a8917; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+    .byline strong { display: block; font-size: 15px; color: var(--ink); }
+    .byline span { font-size: 13px; color: var(--muted); }
+    h2 { font-size: 30px; letter-spacing: -0.02em; margin: 56px 0 16px; line-height: 1.25; }
+    h3 { font-size: 24px; margin: 36px 0 12px; letter-spacing: -0.015em; }
+    h4 { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 18px; margin: 32px 0 8px; }
+    p { margin: 0 0 22px; }
+    ul, ol { margin: 0 0 22px; padding-left: 1.2em; }
+    li { margin: 0 0 10px; }
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+    .caption { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 14px; color: var(--muted); text-align: center; margin: -8px 0 32px; }
+    .pull { border-left: 3px solid var(--ink); padding: 4px 0 4px 20px; margin: 32px 0; font-style: italic; }
+    .why, .note { background: #f7f4ef; border: 1px solid var(--line); padding: 18px 20px; margin: 0 0 24px; font-size: 18px; }
+    .why strong, .note strong { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+    .lines { font-size: 18px; }
+    .lines li { margin: 0 0 14px; }
+    pre { background: var(--code-bg); border-radius: 4px; padding: 18px 20px; overflow-x: auto; margin: 0 0 16px; font-size: 14px; line-height: 1.55; }
+    code { font-family: "Source Code Pro", ui-monospace, Menlo, monospace; font-size: 0.86em; }
+    p code, li code, h3 code, h4 code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; }
+    pre code { font-size: 13px; background: none; padding: 0; }
+    .lang { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 13px; color: var(--faint); margin: 24px 0 6px; }
+    .mermaid { background: #fafafa; border-radius: 6px; padding: 16px 8px; margin: 8px 0 12px; display: flex; justify-content: center; }
+    .scene { border-top: 1px solid var(--line); padding-top: 28px; margin-top: 36px; }
+    .term { background: #1c1917; color: #e7e5e4; border-radius: 6px; padding: 16px 18px; font-family: "Source Code Pro", ui-monospace, Menlo, monospace; font-size: 13.5px; line-height: 1.6; margin: 0 0 18px; overflow-x: auto; }
+    .term .dim { color: #a8a29e; } .term .ok { color: #86efac; } .term .you { color: #93c5fd; }
+    .check { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 16px; columns: 2; gap: 24px; margin: 0 0 28px; }
+    .check li { break-inside: avoid; }
+    footer.meta { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line); font-family: "Source Sans 3", system-ui, sans-serif; font-size: 14px; color: var(--muted); }
+    @media (max-width: 720px) { h1 { font-size: 32px; } body { font-size: 19px; } .check { columns: 1; } }
+  </style>
+</head>
+<body>
+  <div class="top"><div class="top-inner"><span>A slow tutorial. We assume you have not seen this stack.</span><span>RAG · LangGraph · OKF</span></div></div>
+  <article class="article">
+    <div class="tags"><span>LangGraph</span><span>Retrieval Augmented Gen</span><span>OKF</span><span>GPT-4o mini</span></div>
+    <h1>Build this RAG chatbot with LangGraph, GPT, and OKF</h1>
+    <p class="dek">We will not assume you already know what a vector, a graph node, or a system prompt is. Every file, folder, function, and important name gets two answers: why it exists, and what it holds.</p>
+    <div class="byline"><div class="avatar">B</div><div><strong>This exact codebase, taught slowly</strong><span>Read it like a class. Find each name in the code after you read about it.</span></div></div>
+
+    <div class="note">
+      <strong>How to sit with this page</strong>
+      Open this HTML in a browser. Create an empty project folder. After each gray code box, put that code in the filename written above it. When a bullet explains a name, look at that name in the code you just typed. If you only skim the boxes, you will still be lost — the teaching is in the paragraphs, not in the Python.
+    </div>
+
+    <h2>What we are making (no jargon yet)</h2>
+    <p>You already know ChatGPT. You type. It answers. The problem: ChatGPT does not know <em>your</em> product. It was trained on the public internet. It has never read your refund policy. If you ask anyway, it will often invent a policy that sounds real.</p>
+    <p>This project is a small Python program that sits in front of GPT and does extra work <em>before</em> GPT is allowed to talk:</p>
+    <ol>
+      <li>It looks in <em>your files</em> for the few paragraphs that match the question.</li>
+      <li>It pastes those paragraphs into a sheet of instructions GPT must follow.</li>
+      <li>Only then does GPT write a sentence.</li>
+      <li>If you say “book a demo,” it can run a Python function instead of pretending.</li>
+      <li>If you say “my name is Sam,” it writes that down so the next message still knows.</li>
+    </ol>
+    <p>Those five jobs have names. We will use them for the rest of the page, so here they are in dummy language:</p>
+    <ul class="lines">
+      <li><code>RAG</code> — Retrieval-Augmented Generation. Three steps: look up (retrieve), paste into the prompt (augment), write (generate). GPT is only the last step.</li>
+      <li><code>OKF</code> — Open Knowledge Format. How we save each looked-up piece as a markdown file with a label on top, so a human can still open it.</li>
+      <li><code>LangGraph</code> — A library that runs our steps in order, and can loop when GPT asks to run a function.</li>
+      <li><code>tool</code> — A Python function GPT is allowed to call, such as <code>book_demo</code>. Talking is not the same as running code.</li>
+      <li><code>memory</code> — Facts about this person (“User’s name is Sam”), stored in a tiny database. This is not company knowledge. Company knowledge lives in files.</li>
+      <li><code>embedding / vector</code> — A long list of numbers that means “what this paragraph is about.” Similar meaning → similar numbers. That is how search can match “refund” to “money back.”</li>
+      <li><code>chunk</code> — A small page cut from a bigger document, about 800 characters. We search chunks, not whole books, so one question does not drag an entire source file into the prompt.</li>
+    </ul>
+    <p>GPT is only the writer. The rest of the code is the desk, the filing cabinet, and the recipe card.</p>
+
+    <h2>The folders — what lives where, and why</h2>
+    <p>Company knowledge is whatever files <em>that company</em> already has. We do not ship a sample handbook. We do not assume sections named Product, Refunds, or Billing. You drop their files in <code>knowledge/raw/</code> and ingest. If the folder is empty, skip ingest — chat still works; GPT just has no company pages to look up.</p>
+
+    <div class="why">
+      <strong>1. knowledge/raw/ — the incoming pile</strong>
+      You drop original files here: Word (<code>.docx</code>), markdown (<code>.md</code>), or plain text (<code>.txt</code>). Any names, any headings. “Raw” means “not processed yet.” The bot does not chat from this folder. A function named <code>ingest</code> reads the files, then writes new files into the next folder. Empty is allowed: then there is no company truth, and GPT should say it does not know.
+    </div>
+    <div class="why">
+      <strong>2. knowledge/okf/ — the labeled cabinet</strong>
+      After ingest, each source becomes one OKF <em>Document</em> here (the whole file, labeled), and many OKF <em>Chunks</em> under <code>knowledge/okf/chunks/</code> (the pages). Each chunk knows its parent document, its heading, and the original filename. RAG searches chunks. You can still open them in any editor. Chroma cannot be emailed to a teammate; these files can.
+    </div>
+    <div class="why">
+      <strong>3. data/chroma/ — the card catalog</strong>
+      Chroma is a local search index. It stores the list of numbers (embedding) for each chunk. When someone asks a question, we turn it into numbers and ask Chroma for the nearest chunks. Do not edit this folder by hand. Rebuild it by running ingest again.
+    </div>
+    <div class="why">
+      <strong>4. data/bot.db — the conversation notebook</strong>
+      A SQLite file (one file that acts like a tiny spreadsheet). Three tables: <code>messages</code> (what you and the bot said), <code>facts</code> (memories about the person), <code>actions</code> (a demo was booked). Company documents do not belong here. Those stay in OKF.
+    </div>
+
+    <p>The files you will type, and what each one is for:</p>
+    <ul class="lines">
+      <li><code>bot.py</code> — The whole engine. Almost every function lives here. Other files only call this.</li>
+      <li><code>ingest.py</code> — A tiny starter. You point it at a file path. It calls <code>ingest()</code> inside <code>bot.py</code>. It does not search or talk.</li>
+      <li><code>chat.py</code> — A tiny front desk. You type in the terminal. It calls <code>reply()</code> inside <code>bot.py</code>. It does not know about Chroma.</li>
+      <li><code>prompt.md</code> — English instructions GPT must obey. Two holes, <code>{knowledge}</code> and <code>{facts}</code>, get filled every turn by Python.</li>
+      <li><code>.env</code> — Your secret OpenAI key. Python reads it. Never put the key in <code>bot.py</code>.</li>
+      <li><code>.env.example</code> — The same variable names with a blank key, so someone else knows what to fill in.</li>
+      <li><code>.gitignore</code> — A list of files git should not upload: the key, the database, generated OKF.</li>
+      <li><code>knowledge/raw/</code> — Empty until a company drops their own <code>.md</code> / <code>.txt</code> / <code>.docx</code> files here. Not a prompt. Not required to chat.</li>
+      <li><code>requirements.txt</code> — The Python libraries to install.</li>
+    </ul>
+
+    <h3>Company files are optional — and they are not a prompt</h3>
+    <p><code>prompt.md</code> is how GPT behaves. A file in <code>knowledge/raw/</code> is what is true about <em>that</em> company. Same markdown clothes, different job. We do not create a fake handbook. When you have a real doc, drop it in <code>knowledge/raw/</code> (any name) and run ingest. Headings in <em>that</em> file become chunks. If you never ingest, RAG’s cabinet is empty and the bot should say it does not know company facts. Memory, tools, and chat still work.</p>
+    <p>Ingest copies meaning into OKF and Chroma. The original in <code>raw/</code> stays. If you edit the original and do not ingest again, the index is stale.</p>
+
+    <h2>The three ideas, slower</h2>
+    <h3>RAG — why not dump the whole file into GPT?</h3>
+    <p>You could paste an entire source file into the prompt every time. That costs more (GPT charges per token, which is roughly per word), and the useful sentence gets lost in noise. RAG’s job: pick about 5 small pages that match <em>this</em> question, paste only those, then generate.</p>
+    <p>How “match” works here: an embedding model named <code>text-embedding-3-small</code> (OpenAI) turns a paragraph into numbers. Chroma stores those numbers on your disk. If embeddings fail (no API key, empty index), we fall back to counting overlapping words. Still a lookup. Dumber matching. Close synonyms may not match in the fallback.</p>
+    <p>Lookup without paste is a search you never use. Paste without lookup is guessing. Both together are RAG.</p>
+
+    <h3>OKF — why not only Chroma?</h3>
+    <p>Chroma is a black box of numbers. You cannot open it and edit paragraph 4. After ingest, a chunk file looks like this:</p>
+    <div class="lang">Example of a generated chunk (you do not type this; ingest writes it from whatever file you gave it)</div>
+<pre><code>---
+type: Chunk
+title: Hours
+parent: office-guide
+section: Hours
+source_file: office-guide.md
+---
+
+The office is open Monday to Friday, 9 to 5.
+</code></pre>
+    <ul class="lines">
+      <li>The block between <code>---</code> lines — Called frontmatter. It is YAML: a labeled list. <code>type</code> is Document or Chunk. <code>parent</code> is which document this page came from. <code>section</code> is the heading <em>in that company’s file</em>. <code>source_file</code> is the original filename.</li>
+      <li>The paragraph under the second <code>---</code> — The actual text GPT will read if retrieve picks this chunk.</li>
+      <li>Why <code>parent</code> exists — So a citation can say <code>office-guide#Hours</code> instead of a random filename. That is what <code>chat.py</code> prints after <code>sources&gt;</code>. The names come from the file you ingested, not from this tutorial.</li>
+    </ul>
+
+    <h3>LangGraph — why not one giant function?</h3>
+    <p>You could write: look up, call GPT, maybe run a tool, save. That works until GPT says “I need to call book_demo.” Then you must run the function, send the result back to GPT, and let GPT write “You’re booked.” That is a loop. LangGraph is a library for “do step A, then B, and sometimes go back.”</p>
+    <ul class="lines">
+      <li><code>node</code> — A Python function we register on the graph. It receives the current state (a backpack of data) and returns the fields it wants to change.</li>
+      <li><code>edge</code> — An arrow: after this node, always go there.</li>
+      <li><code>conditional edge</code> — An arrow that asks a question. Ours asks: did GPT request a tool? If yes, go to tools. If no, go to save.</li>
+      <li><code>state</code> — The backpack. Keys like <code>message</code>, <code>knowledge</code>, <code>facts</code>, <code>reply</code>. Every node reads and writes this one dict. Nobody passes ten arguments around.</li>
+    </ul>
+    <div class="lang">The recipe we will wire</div>
+    <pre class="mermaid">
+flowchart TD
+  START([START]) --> retrieve
+  retrieve["retrieve: lookup + memory"] --> agent["agent: GPT"]
+  agent -->|GPT wants a tool| tools["tools: run book_demo etc"]
+  tools --> agent
+  agent -->|GPT is done talking| save["save: store reply + facts"]
+  save --> END([END])
+    </pre>
+    <p class="caption">One user message can loop agent → tools → agent, then save once.</p>
+
+    <h2>Install — why each support file</h2>
+    <p>Create a folder. Create empty <code>bot.py</code>, <code>ingest.py</code>, <code>chat.py</code>. Then these files. A <strong>library</strong> is code someone else wrote that we install with <code>pip</code>. Python does not include GPT or LangGraph out of the box.</p>
+
+    <h3>requirements.txt</h3>
+    <p>This is a shopping list. Each line is a library and a minimum version. You do not run this file. You tell pip to read it.</p>
+    <div class="lang">Put this in your file · text — requirements.txt</div>
+<pre><code>langgraph&gt;=1.0.0
+langchain-core&gt;=0.3.0
+langchain-openai&gt;=0.3.0
+langchain-chroma&gt;=0.2.0
+chromadb&gt;=1.0.0
+python-dotenv&gt;=1.0.0
+python-docx&gt;=1.1.0
+pyyaml&gt;=6.0.0
+</code></pre>
+
+    <ul class="lines">
+      <li><code>langgraph</code> — The flowchart: nodes, edges, compile, invoke.</li>
+      <li><code>langchain-core</code> — Shared pieces: <code>Document</code>, chat messages, the <code>@tool</code> decorator.</li>
+      <li><code>langchain-openai</code> — <code>ChatOpenAI</code> (talk to GPT) and <code>OpenAIEmbeddings</code> (turn text into numbers).</li>
+      <li><code>langchain-chroma</code> and <code>chromadb</code> — The local search index on disk.</li>
+      <li><code>python-dotenv</code> — Reads <code>.env</code> into environment variables so <code>os.getenv("OPENAI_API_KEY")</code> works.</li>
+      <li><code>python-docx</code> — Pulls text out of Word files during ingest.</li>
+      <li><code>pyyaml</code> — Reads and writes the YAML labels on OKF files.</li>
+    </ul>
+    <div class="lang">Run these in the terminal, in your project folder</div>
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+</code></pre>
+    <p>A <strong>virtual environment</strong> (<code>.venv</code>) is a private box of libraries for this project only. If you skip it, these packages install onto your whole computer and can clash with other projects. Your prompt often shows <code>(.venv)</code> when the box is on. Every later command (<code>python ingest.py</code>, <code>python chat.py</code>) must run with the box on.</p>
+
+    <h3>.env — why a secret file</h3>
+    <p>OpenAI must know it is you. They give you a key that starts with <code>sk-</code>. If you paste that key into <code>bot.py</code> and share the file, anyone can spend your money. So the key lives in <code>.env</code>. Create it. No quotes around the key. No spaces around <code>=</code>.</p>
+    <div class="lang">Put this in .env — use your real key</div>
+<pre><code>OPENAI_API_KEY=sk-your-real-key-here
+OPENAI_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+</code></pre>
+    <ul class="lines">
+      <li><code>OPENAI_API_KEY</code> — Password for OpenAI. Without it, <code>reply()</code> raises an error, and embeddings are skipped.</li>
+      <li><code>OPENAI_MODEL</code> — Which GPT to use. <code>gpt-4o-mini</code> is this repo’s default: cheaper, good enough.</li>
+      <li><code>EMBEDDING_MODEL</code> — Which model turns text into numbers. The same name must be used when you index and when you search.</li>
+    </ul>
+    <p>Also create <code>.env.example</code> with empty values so the names are documented without a secret:</p>
+    <div class="lang">Put this in your file · env — .env.example</div>
+<pre><code>OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+</code></pre>
+
+
+    <h3>.gitignore — why</h3>
+    <p>If you use git, this file says “do not upload these.” Otherwise your key and database go to GitHub.</p>
+    <div class="lang">Put this in your file · text — .gitignore</div>
+<pre><code>.venv/
+__pycache__/
+*.py[cod]
+.env
+data/
+knowledge/okf/
+.DS_Store
+.idea/
+.vscode/
+.pytest_cache/
+*.egg-info/
+</code></pre>
+
+
+    <h2>prompt.md — GPT’s manners sheet</h2>
+    <p>Every GPT call can include a <strong>system</strong> message: instructions that are not the user’s question. Ours live in a markdown file so you can change the voice without touching Python. Create <code>prompt.md</code> now, before <code>bot.py</code>, because <code>load_prompt()</code> will read it.</p>
+    <div class="lang">Put this in your file · markdown — prompt.md</div>
+<pre><code>You are a helpful assistant for this product.
+
+How to talk:
+- Be clear, warm, and direct.
+- Keep answers short unless the person asks for detail.
+- Do not invent facts about the product, company, or policies.
+- If the knowledge below does not contain the answer, say you do not know.
+- Use stored facts about this person when it helps.
+- You can book a demo, save a fact, or hand the chat to a human.
+
+Knowledge from the company files:
+{knowledge}
+
+Facts we already know about this person:
+{facts}
+</code></pre>
+
+    <ul class="lines">
+      <li><code>You are a helpful assistant...</code> — Role. GPT tries to stay in this character.</li>
+      <li><code>Do not invent facts...</code> — The most important rule. Without it, GPT would rather sound confident than honest.</li>
+      <li><code>If the knowledge below does not contain the answer, say you do not know</code> — Ties the model to RAG. Empty knowledge should produce a refusal, not a made-up policy.</li>
+      <li><code>{knowledge}</code> — A placeholder. You never type the chunks into this file. <code>load_prompt()</code> replaces this with retrieved paragraphs every turn. The spelling must match exactly, including the braces.</li>
+      <li><code>{facts}</code> — The other placeholder. Replaced with memory like “User’s name is Sam.”</li>
+      <li><code>You can book a demo...</code> — A hint that tools exist. The real tool list is still bound in Python; this only tells GPT it is allowed to try.</li>
+    </ul>
+    <p>If you add “Always answer in simple English” here and run chat, the voice changes. That is the proof that this file is live.</p>
+
+    <h2>bot.py from the top — names we reuse everywhere</h2>
+    <p>Create <code>bot.py</code>. This first block is not a function. It is imports (borrowing other people’s code), paths (where files live), and knobs (numbers you can tune). Every later function uses these names.</p>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>&quot;&quot;&quot;One conversation engine: knowledge, memory, GPT, tools.
+
+Put company files in knowledge/raw/ and run: python ingest.py
+Talk with: python chat.py
+Edit how it talks in: prompt.md
+&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sqlite3
+import uuid
+from pathlib import Path
+from typing import Annotated, TypedDict
+
+import yaml
+from dotenv import load_dotenv
+from langchain_chroma import Chroma
+from langchain_core.documents import Document
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+
+ROOT = Path(__file__).resolve().parent
+load_dotenv(ROOT / &quot;.env&quot;)
+
+OPENAI_API_KEY = os.getenv(&quot;OPENAI_API_KEY&quot;, &quot;&quot;)
+OPENAI_MODEL = os.getenv(&quot;OPENAI_MODEL&quot;, &quot;gpt-4o-mini&quot;)
+EMBEDDING_MODEL = os.getenv(&quot;EMBEDDING_MODEL&quot;, &quot;text-embedding-3-small&quot;)
+
+RAW_DIR = ROOT / &quot;knowledge&quot; / &quot;raw&quot;
+OKF_DIR = ROOT / &quot;knowledge&quot; / &quot;okf&quot;
+CHUNK_DIR = OKF_DIR / &quot;chunks&quot;
+DATA_DIR = ROOT / &quot;data&quot;
+DB_PATH = DATA_DIR / &quot;bot.db&quot;
+CHROMA_DIR = DATA_DIR / &quot;chroma&quot;
+PROMPT_PATH = ROOT / &quot;prompt.md&quot;
+
+HISTORY_LIMIT = 20
+FACT_LIMIT = 20
+RAG_K = 5
+CHUNK_SIZE = 800
+
+for folder in (RAW_DIR, OKF_DIR, CHUNK_DIR, DATA_DIR, CHROMA_DIR):
+    folder.mkdir(parents=True, exist_ok=True)
+</code></pre>
+
+    <p>Why we import each thing:</p>
+    <ul class="lines">
+      <li><code>json</code> — Turn a Python dict into text for the actions table, and parse GPT’s fact JSON back into a dict.</li>
+      <li><code>os</code> — Read environment variables such as the API key.</li>
+      <li><code>re</code> — Regular expressions: pull words out of a question for the fallback search.</li>
+      <li><code>sqlite3</code> — Python’s built-in database. No extra server to install.</li>
+      <li><code>uuid</code> — Random ids so each database row has a unique name.</li>
+      <li><code>Path</code> — Safer file paths than raw strings. <code>ROOT / "data"</code> works on Mac and Windows.</li>
+      <li><code>Annotated, TypedDict</code> — Describe the shape of state. <code>Annotated</code> tells LangGraph how to merge the messages list (append, do not replace).</li>
+      <li><code>yaml</code> — Read and write OKF labels.</li>
+      <li><code>load_dotenv</code> — Load <code>.env</code> as soon as <code>bot.py</code> is imported, before any function runs.</li>
+      <li><code>Chroma, Document</code> — The vector store, and the object we insert into it.</li>
+      <li><code>SystemMessage, HumanMessage, AIMessage</code> — The three roles in a GPT transcript: instructions, user, assistant.</li>
+      <li><code>tool</code> — Decorator that turns a function into something GPT can call. The line looks like <code>@tool</code> above <code>def</code>.</li>
+      <li><code>ChatOpenAI, OpenAIEmbeddings</code> — GPT and the embedding model.</li>
+      <li><code>StateGraph, START, END, add_messages, ToolNode</code> — LangGraph: the graph, the start/end markers, how messages merge, and a ready-made node that runs tools.</li>
+    </ul>
+    <p>Why each path and knob exists:</p>
+    <ul class="lines">
+      <li><code>ROOT</code> — The folder that contains <code>bot.py</code>. All other paths hang off this so the code does not care what you named the project or where you put it.</li>
+      <li><code>load_dotenv(ROOT / ".env")</code> — Runs once at import. After this, <code>os.getenv</code> can see <code>OPENAI_API_KEY</code>.</li>
+      <li><code>RAW_DIR</code>, <code>OKF_DIR</code>, <code>CHUNK_DIR</code>, <code>DATA_DIR</code>, <code>CHROMA_DIR</code>, <code>DB_PATH</code>, <code>PROMPT_PATH</code> — One name per folder or file. Later functions use these names instead of repeating strings. If you renamed a folder, you would change it here once.</li>
+      <li><code>HISTORY_LIMIT = 20</code> — Only the last 20 chat lines go to GPT. Older lines stay in the database but are not sent, so the prompt does not grow forever (and cost more each turn).</li>
+      <li><code>FACT_LIMIT = 20</code> — If we have 20 facts or fewer, send them all. If more, filter. See <code>relevant_facts</code>.</li>
+      <li><code>RAG_K = 5</code> — How many chunks retrieve returns. Raise it if answers miss context. Lower it if prompts feel bloated.</li>
+      <li><code>CHUNK_SIZE = 800</code> — Max characters in one chunk. Bigger = fewer chunks, worse targeting. Smaller = more fragments.</li>
+      <li>The <code>mkdir</code> loop — Creates empty folders on first run so ingest and Chroma do not crash because a directory is missing. <code>parents=True</code> also creates <code>knowledge/</code> if needed. <code>exist_ok=True</code> means “do not error if it already exists.”</li>
+    </ul>
+
+    <h2>Talking to GPT and to the notebook</h2>
+    <h3>llm() — the phone line to GPT</h3>
+    <div class="why"><strong>Why this function exists</strong>Every place that needs GPT (the agent, the fact extractor) should not copy API-key code. One function returns a ready client. If we later change model or temperature, we change one line.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def llm():
+    return ChatOpenAI(model=OPENAI_MODEL, api_key=OPENAI_API_KEY or None, temperature=0)
+</code></pre>
+
+    <ul class="lines">
+      <li><code>ChatOpenAI(...)</code> — LangChain’s wrapper around OpenAI’s chat API. You call <code>.invoke(messages)</code> on what this returns.</li>
+      <li><code>model=OPENAI_MODEL</code> — Uses the name from <code>.env</code>, default <code>gpt-4o-mini</code>.</li>
+      <li><code>api_key=OPENAI_API_KEY or None</code> — If the key is the empty string <code>""</code>, pass <code>None</code> instead. The library then looks at the environment itself.</li>
+      <li><code>temperature=0</code> — How random GPT is. 0 means pick the most likely next words. We want a consistent support bot, not a poet.</li>
+    </ul>
+
+    <h3>db() — open the notebook</h3>
+    <div class="why"><strong>Why</strong>SQLite is a single file, but we still need tables (like sheets). <code>db()</code> opens <code>data/bot.db</code> and creates three tables if this is the first run. Other functions call <code>db()</code> whenever they need to read or write, then they close the connection. We do not keep one global connection forever.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def db():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        &quot;&quot;&quot;
+        CREATE TABLE IF NOT EXISTS messages (
+            id TEXT PRIMARY KEY, role TEXT, content TEXT, created_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS facts (
+            id TEXT PRIMARY KEY, fact TEXT UNIQUE, created_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS actions (
+            id TEXT PRIMARY KEY, kind TEXT, payload TEXT, created_at TEXT
+        );
+        &quot;&quot;&quot;
+    )
+    return conn
+</code></pre>
+
+    <ul class="lines">
+      <li><code>DATA_DIR.mkdir(...)</code> — Create <code>data/</code> if someone deleted it.</li>
+      <li><code>sqlite3.connect(DB_PATH)</code> — Open or create the file. Returns a connection we name <code>conn</code>.</li>
+      <li><code>conn.row_factory = sqlite3.Row</code> — Let us write <code>row["fact"]</code> instead of <code>row[0]</code>. Names beat positions.</li>
+      <li><code>CREATE TABLE IF NOT EXISTS</code> — If the table already exists, do nothing. Safe to call every time.</li>
+      <li><code>messages</code> — One row per chat line. <code>role</code> is the text <code>user</code> or <code>assistant</code>. <code>content</code> is what they said.</li>
+      <li><code>facts</code> — One row per memory. <code>fact TEXT UNIQUE</code> means we cannot store the same sentence twice.</li>
+      <li><code>actions</code> — One row per tool side-effect. <code>kind</code> is <code>book_demo</code> or <code>handoff</code>. <code>payload</code> is JSON details (topic, time).</li>
+      <li><code>return conn</code> — The caller must <code>commit()</code> (save) and <code>close()</code> (unlock the file).</li>
+    </ul>
+
+    <h3>now() — timestamps</h3>
+    <div class="why"><strong>Why</strong>Every row wants to know when it was written, so <code>history()</code> can sort. We use UTC so two machines do not disagree about timezones.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def now():
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+</code></pre>
+
+    <ul class="lines">
+      <li>Import inside the function — Keeps the top of the file shorter. Fine here.</li>
+      <li><code>isoformat()</code> — Returns text like <code>2026-10-26T10:00:00+00:00</code>. SQLite stores it as TEXT. Good enough to sort.</li>
+    </ul>
+
+    <h3>add_message(role, content) — save one line of chat</h3>
+    <div class="why"><strong>Why</strong>If we do not save, the next turn GPT will not know what was said. This writes one row. <code>role</code> tells us who spoke.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def add_message(role: str, content: str):
+    conn = db()
+    conn.execute(
+        &quot;INSERT INTO messages VALUES (?, ?, ?, ?)&quot;,
+        (uuid.uuid4().hex, role, content.strip(), now()),
+    )
+    conn.commit()
+    conn.close()
+</code></pre>
+
+    <ul class="lines">
+      <li><code>role</code> — The string <code>"user"</code> or <code>"assistant"</code>. Not a Python class. Just text in the table.</li>
+      <li><code>content.strip()</code> — Remove accidental spaces at the ends.</li>
+      <li><code>uuid.uuid4().hex</code> — A random 32-character id. Primary key. We never reuse it.</li>
+      <li>The four <code>?</code> in INSERT — Placeholders. The tuple that follows fills them in order. This avoids quoting bugs and SQL injection.</li>
+      <li><code>commit()</code> — Actually write to disk. Without this, the row vanishes when we close.</li>
+      <li><code>close()</code> — Free the file lock so the next call to <code>db()</code> can open it.</li>
+    </ul>
+
+    <h3>history() — last 20 lines, oldest first</h3>
+    <div class="why"><strong>Why</strong>GPT needs recent conversation to understand follow-ups like “what about the other one?” We do not send the entire database. We send <code>HISTORY_LIMIT</code> lines. Oldest first because a chat transcript reads top to bottom.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def history():
+    conn = db()
+    rows = conn.execute(
+        &quot;&quot;&quot;
+        SELECT * FROM (
+            SELECT * FROM messages ORDER BY created_at DESC LIMIT ?
+        ) ORDER BY created_at ASC
+        &quot;&quot;&quot;,
+        (HISTORY_LIMIT,),
+    ).fetchall()
+    conn.close()
+    return [{&quot;role&quot;: r[&quot;role&quot;], &quot;content&quot;: r[&quot;content&quot;]} for r in rows]
+</code></pre>
+
+    <ul class="lines">
+      <li>Inner <code>SELECT ... DESC LIMIT ?</code> — Take the newest 20. They come out newest-first, which is the wrong order for GPT.</li>
+      <li>Outer <code>ORDER BY created_at ASC</code> — Flip them. Now the first dict is the oldest of those 20.</li>
+      <li>The <code>?</code> is filled with <code>(HISTORY_LIMIT,)</code> — The trailing comma makes a one-item tuple, which sqlite3 requires.</li>
+      <li>Return value — A list of dicts like <code>[{"role": "user", "content": "hi"}]</code>. <code>node_agent</code> will turn these into <code>HumanMessage</code> / <code>AIMessage</code> objects.</li>
+    </ul>
+
+    <h3>all_facts / add_fact / forget_fact — long-term memory</h3>
+    <div class="why"><strong>Why three functions</strong>Memory is a list of freeform sentences, not a profile form with “name” and “email” boxes. We need: read them all, add one if new, delete if the person corrects themselves. Split into three so tools and <code>node_save</code> can each call what they need.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def all_facts() -&gt; list[str]:
+    conn = db()
+    rows = conn.execute(&quot;SELECT fact FROM facts ORDER BY created_at&quot;).fetchall()
+    conn.close()
+    return [r[&quot;fact&quot;] for r in rows]
+</code></pre>
+
+    <ul class="lines">
+      <li><code>SELECT fact ... ORDER BY created_at</code> — Oldest first, stable list.</li>
+      <li>Return value — A list of strings, for example <code>["User’s name is Sam"]</code>.</li>
+    </ul>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def add_fact(fact: str) -&gt; str | None:
+    text = &quot; &quot;.join(fact.strip().split())
+    if not text:
+        return None
+    conn = db()
+    exists = conn.execute(&quot;SELECT 1 FROM facts WHERE lower(fact)=lower(?)&quot;, (text,)).fetchone()
+    if exists:
+        conn.close()
+        return None
+    conn.execute(&quot;INSERT INTO facts VALUES (?, ?, ?)&quot;, (uuid.uuid4().hex, text, now()))
+    conn.commit()
+    conn.close()
+    return text
+</code></pre>
+
+    <ul class="lines">
+      <li><code>" ".join(fact.strip().split())</code> — Collapse weird spacing so “Sam” and “  Sam  ” become the same text.</li>
+      <li><code>if not text: return None</code> — Do not store empty strings. <code>None</code> means “we stored nothing.”</li>
+      <li><code>lower(fact)=lower(?)</code> — Duplicate check that ignores capital letters.</li>
+      <li><code>return None</code> vs <code>return text</code> — <code>None</code> means “already there.” The <code>save_fact</code> tool uses that to say “Already stored.”</li>
+    </ul>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def forget_fact(text: str) -&gt; list[str]:
+    needle = text.strip().lower()
+    removed = []
+    conn = db()
+    for row in conn.execute(&quot;SELECT id, fact FROM facts&quot;).fetchall():
+        if needle in row[&quot;fact&quot;].lower() or row[&quot;fact&quot;].lower() in needle:
+            conn.execute(&quot;DELETE FROM facts WHERE id=?&quot;, (row[&quot;id&quot;],))
+            removed.append(row[&quot;fact&quot;])
+    conn.commit()
+    conn.close()
+    return removed
+</code></pre>
+
+    <ul class="lines">
+      <li><code>needle</code> — The search string, lowercased. We named it needle because we search for it inside haystacks (the stored facts).</li>
+      <li><code>needle in fact or fact in needle</code> — If they say “not Sam”, we match a stored fact that contains Sam, or a fact fully contained in their sentence. A bit fuzzy on purpose.</li>
+      <li>Return value — The list of strings we deleted, useful if you ever print debug info.</li>
+    </ul>
+
+    <h3>add_action(kind, payload) — proof a tool ran</h3>
+    <div class="why"><strong>Why</strong>Talking is not booking. When <code>book_demo</code> runs, we need a row we could later show a human teammate. <code>payload</code> is a dict (topic, time) stored as JSON text because SQLite has no dict column type.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def add_action(kind: str, payload: dict):
+    conn = db()
+    conn.execute(
+        &quot;INSERT INTO actions VALUES (?, ?, ?, ?)&quot;,
+        (uuid.uuid4().hex, kind, json.dumps(payload), now()),
+    )
+    conn.commit()
+    conn.close()
+</code></pre>
+
+    <ul class="lines">
+      <li><code>kind</code> — A short name: <code>book_demo</code> or <code>handoff</code>.</li>
+      <li><code>json.dumps(payload)</code> — Dict becomes a string, e.g. <code>{"topic": "billing", "preferred_time": "3pm"}</code>.</li>
+    </ul>
+
+    <h2>OKF helpers — write labels, read labels</h2>
+    <h3>write_okf / parse_okf</h3>
+    <div class="why"><strong>Why a pair</strong>We need one way to write a labeled markdown file and one way to read it back. Ingest writes. Retrieve and index read. If you change the format, you change these two only.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def write_okf(path: Path, meta: dict, body: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+    path.write_text(f&quot;---\n{front}\n---\n\n{body.strip()}\n&quot;, encoding=&quot;utf-8&quot;)
+</code></pre>
+
+    <ul class="lines">
+      <li><code>path</code> — Where to write, e.g. <code>knowledge/okf/chunks/office-guide-hours-01.md</code>.</li>
+      <li><code>meta</code> — A Python dict that becomes YAML. Example keys: type, title, parent.</li>
+      <li><code>body</code> — The paragraph(s) under the frontmatter.</li>
+      <li><code>yaml.safe_dump</code> — Dict → YAML text. <code>sort_keys=False</code> keeps our field order. <code>allow_unicode=True</code> keeps accents.</li>
+      <li>The f-string with <code>---</code> — The OKF sandwich: dashed line, YAML, dashed line, blank line, body.</li>
+    </ul>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def parse_okf(path: Path) -&gt; tuple[dict, str]:
+    text = path.read_text(encoding=&quot;utf-8&quot;)
+    if not text.startswith(&quot;---&quot;):
+        return {}, text.strip()
+    parts = text.split(&quot;---&quot;, 2)
+    if len(parts) &lt; 3:
+        return {}, text.strip()
+    return yaml.safe_load(parts[1]) or {}, parts[2].strip()
+</code></pre>
+
+    <ul class="lines">
+      <li>If the file does not start with <code>---</code> — Treat everything as body, empty dict for meta. Defensive: a plain markdown file still “works.”</li>
+      <li><code>split("---", 2)</code> — Cut into at most 3 pieces: before, yaml, after. The <code>2</code> means “split twice.”</li>
+      <li><code>yaml.safe_load(parts[1])</code> — YAML text → dict. <code>or {}</code> if YAML was empty.</li>
+      <li>Return value — A tuple <code>(meta, body)</code>. Callers write <code>meta, body = parse_okf(path)</code>.</li>
+    </ul>
+
+    <h3>slug(text) — safe filenames</h3>
+    <div class="why"><strong>Why</strong>Windows and Mac hate filenames like “Office Guide!”. <code>slug</code> turns any heading into lowercase letters, numbers, and hyphens: <code>office-guide</code>. Used when we name OKF files.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def slug(text: str) -&gt; str:
+    out = re.sub(r&quot;[^a-z0-9]+&quot;, &quot;-&quot;, text.lower()).strip(&quot;-&quot;)
+    return out or &quot;note&quot;
+</code></pre>
+
+    <ul class="lines">
+      <li><code>re.sub(...)</code> — Replace any run of characters that are not a–z or 0–9 with a single hyphen.</li>
+      <li><code>strip("-")</code> — No hyphen at the start or end.</li>
+      <li><code>return out or "note"</code> — If the heading was all punctuation, we still need a name. <code>note</code> is the fallback.</li>
+    </ul>
+
+    <h3>chunk_text(body) — tear the book into pages</h3>
+    <div class="why"><strong>Why</strong>One embedding for a long source file would mix unrelated topics. Search would always drag the whole file. We split on markdown headings first. If a section is still longer than <code>CHUNK_SIZE</code> (800 characters), we pack paragraphs until the budget is full.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def chunk_text(body: str) -&gt; list[tuple[str, str]]:
+    sections: list[tuple[str, list[str]]] = [(&quot;&quot;, [])]
+    for line in body.splitlines():
+        if line.startswith(&quot;#&quot;):
+            sections.append((line.lstrip(&quot;#&quot;).strip(), []))
+        else:
+            sections[-1][1].append(line)
+    chunks = []
+    for heading, lines in sections:
+        text = &quot;\n&quot;.join(lines).strip()
+        if not text:
+            continue
+        if len(text) &lt;= CHUNK_SIZE:
+            chunks.append((heading, text))
+            continue
+        current = &quot;&quot;
+        for para in text.split(&quot;\n\n&quot;):
+            piece = para.strip()
+            if not piece:
+                continue
+            if current and len(current) + len(piece) &gt; CHUNK_SIZE:
+                chunks.append((heading, current))
+                current = piece
+            else:
+                current = f&quot;{current}\n\n{piece}&quot;.strip() if current else piece
+        if current:
+            chunks.append((heading, current))
+    return chunks
+</code></pre>
+
+    <ul class="lines">
+      <li><code>body</code> — The whole document as one string, already extracted from Word or markdown.</li>
+      <li><code>sections</code> starts as <code>[("", [])]</code> — Text before the first heading still has a home (empty heading name, empty list of lines).</li>
+      <li><code>if line.startswith("#")</code> — New section. Strip the <code>#</code> marks to get the heading name.</li>
+      <li><code>else: append line</code> — Body lines belong to the latest heading.</li>
+      <li>If <code>len(text) &lt;= CHUNK_SIZE</code> — Short section → keep together. Better for meaning.</li>
+      <li>Split on blank lines — Paragraphs. Add them to <code>current</code> until adding one more would exceed 800 characters, then start a new chunk with the same heading.</li>
+      <li>Return value — A list of pairs <code>(heading, text)</code>. Ingest writes one OKF file per pair.</li>
+    </ul>
+    <p>Example: a source file with three <code>##</code> headings usually becomes three chunks. A question about one heading can then retrieve that page without the others.</p>
+
+    <h2>RAG: build the index, then look up</h2>
+    <h3>chroma() — open the card catalog</h3>
+    <div class="why"><strong>Why</strong>We do not copy settings in three places. This function returns the same collection every time: name <code>knowledge</code>, embeddings from OpenAI, files under <code>data/chroma/</code>.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def chroma():
+    return Chroma(
+        collection_name=&quot;knowledge&quot;,
+        embedding_function=OpenAIEmbeddings(model=EMBEDDING_MODEL, api_key=OPENAI_API_KEY or None),
+        persist_directory=str(CHROMA_DIR),
+    )
+</code></pre>
+
+    <ul class="lines">
+      <li><code>collection_name="knowledge"</code> — One named bucket inside Chroma. <code>index_chunks</code> deletes this name before rebuilding so old paragraphs disappear.</li>
+      <li><code>embedding_function=OpenAIEmbeddings(...)</code> — When we add a document or search, Chroma calls OpenAI to get numbers. We do not compute vectors by hand.</li>
+      <li><code>persist_directory</code> — Where on disk. Survives restart. The index stays until you ingest again.</li>
+    </ul>
+
+    <h3>index_chunks(paths) — fill the catalog from OKF files</h3>
+    <div class="why"><strong>Why</strong>OKF files are the source of truth. Chroma is a cache for search. After ingest writes chunks, this function reads them, wipes the old collection, and inserts fresh <code>Document</code> objects. If you skipped this, <code>retrieve</code> would have nothing to search with vectors.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def index_chunks(paths: list[Path]) -&gt; int:
+    if not OPENAI_API_KEY:
+        return len(paths)
+    import chromadb
+
+    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    try:
+        client.delete_collection(&quot;knowledge&quot;)
+    except Exception:
+        pass
+    docs = []
+    for path in paths:
+        meta, body = parse_okf(path)
+        if not body:
+            continue
+        docs.append(
+            Document(
+                page_content=body,
+                metadata={
+                    &quot;source&quot;: f&quot;{meta.get(&#x27;parent&#x27;, path.stem)}#{meta.get(&#x27;section&#x27;, &#x27;&#x27;)}&quot;.strip(&quot;#&quot;),
+                    &quot;title&quot;: meta.get(&quot;title&quot;, path.stem),
+                },
+            )
+        )
+    if docs:
+        chroma().add_documents(docs)
+    return len(docs)
+</code></pre>
+
+    <ul class="lines">
+      <li><code>paths</code> — A list of <code>Path</code> objects pointing at chunk markdown files.</li>
+      <li><code>if not OPENAI_API_KEY: return len(paths)</code> — Cannot embed without a key. Skip Chroma. <code>retrieve()</code> will use word overlap later.</li>
+      <li><code>delete_collection("knowledge")</code> — Throw away the old index. The <code>except</code> is because the first run has nothing to delete.</li>
+      <li><code>parse_okf(path)</code> — Read labels + body from each chunk file.</li>
+      <li><code>Document(page_content=body, metadata=...)</code> — LangChain’s shape. <code>page_content</code> is searchable text. <code>metadata["source"]</code> is the citation string <code>parent#section</code>.</li>
+      <li><code>chroma().add_documents(docs)</code> — This is the moment OpenAI turns each body into a vector and Chroma saves it.</li>
+      <li>Return value — How many documents we indexed. <code>ingest.py</code> prints this.</li>
+    </ul>
+
+    <h3>retrieve(question) — the R in RAG</h3>
+    <div class="why"><strong>Why</strong>This is the lookup. Input: the user’s sentence as a string. Output: a list of dicts like <code>[{"source": "office-guide#Hours", "body": "..."}]</code>, length up to 5. Those dicts will be pasted into <code>prompt.md</code>. If this function always returned <code>[]</code>, GPT would never see the company files. That is also valid: you can chat with no knowledge ingested.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def retrieve(question: str) -&gt; list[dict]:
+    if OPENAI_API_KEY:
+        try:
+            hits = chroma().similarity_search(question, k=RAG_K)
+            return [
+                {
+                    &quot;source&quot;: (d.metadata or {}).get(&quot;source&quot;, &quot;&quot;),
+                    &quot;body&quot;: d.page_content,
+                }
+                for d in hits
+            ]
+        except Exception:
+            pass
+    words = {w for w in re.findall(r&quot;[a-z0-9]+&quot;, question.lower()) if len(w) &gt; 2}
+    scored = []
+    for path in sorted(CHUNK_DIR.glob(&quot;*.md&quot;)):
+        meta, body = parse_okf(path)
+        hay = f&quot;{meta.get(&#x27;title&#x27;, &#x27;&#x27;)} {meta.get(&#x27;parent&#x27;, &#x27;&#x27;)} {body}&quot;.lower()
+        score = sum(1 for w in words if w in hay)
+        if score:
+            scored.append((score, {&quot;source&quot;: f&quot;{meta.get(&#x27;parent&#x27;, path.stem)}#{meta.get(&#x27;section&#x27;, &#x27;&#x27;)}&quot;.strip(&quot;#&quot;), &quot;body&quot;: body}))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [item[1] for item in scored[:RAG_K]]
+</code></pre>
+
+    <ul class="lines">
+      <li><code>question</code> — Whatever the human typed this turn, e.g. “What are the office hours?”</li>
+      <li><code>similarity_search(question, k=RAG_K)</code> — Embed the question, find the 5 nearest chunk vectors. Returns LangChain <code>Document</code> objects.</li>
+      <li>We map them to <code>source</code> and <code>body</code> — We only keep what the prompt needs.</li>
+      <li><code>except: pass</code> — If Chroma is empty or the network fails, fall through to word overlap instead of crashing the whole chat.</li>
+      <li><code>words = {w for w in re.findall(...) if len(w) > 2}</code> — Fallback: unique words longer than 2 letters. “is” and “a” are ignored because they match everything.</li>
+      <li><code>score</code> — How many of those words appear in title + parent + body. A chunk that contains two of the question’s words scores 2.</li>
+      <li><code>sort reverse, take [:RAG_K]</code> — Best first, keep 5.</li>
+    </ul>
+    <p>If you ingested a file that mentions hours, a question about hours should return that chunk. The source string is <code>parent#section</code> from the OKF labels — names taken from <em>their</em> file, not from this tutorial. That string is what <code>chat.py</code> prints after <code>sources&gt;</code>.</p>
+    <div class="note"><strong>A common confusion</strong>Chroma does not answer the question. It only ranks chunks. GPT answers. If a wrong chunk is in the top 5, GPT may still quote it. Retrieval quality is most of RAG quality.</div>
+
+    <h2>Tools — functions GPT may call</h2>
+    <p>GPT cannot actually book a meeting by talking. We give it three Python functions. The <code>@tool</code> line above each <code>def</code> publishes the function name, arguments, and docstring to GPT. <strong>If you skip <code>@tool</code>, GPT cannot call it.</strong></p>
+    <p>The string the function returns goes back to GPT, not straight to the user. GPT then writes the sentence the user sees.</p>
+
+    <h3>book_demo</h3>
+    <div class="why"><strong>Why</strong>Product bots get “can I see a demo?” If we only reply with text, nothing is recorded. This writes an actions row. There is no real calendar on purpose — later you replace the body with an API call and leave the graph alone.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>@tool
+def book_demo(topic: str, preferred_time: str = &quot;&quot;) -&gt; str:
+    &quot;&quot;&quot;Book a product demo or meeting. Topic is what they want to see. preferred_time is optional.&quot;&quot;&quot;
+    add_action(&quot;book_demo&quot;, {&quot;topic&quot;: topic, &quot;preferred_time&quot;: preferred_time})
+    when = f&quot; at {preferred_time}&quot; if preferred_time else &quot;&quot;
+    return f&quot;Booked a demo about &#x27;{topic}&#x27;{when}. A teammate will confirm.&quot;
+</code></pre>
+
+    <ul class="lines">
+      <li><code>@tool</code> — Required. Registers this function with LangChain.</li>
+      <li>The docstring in triple quotes — GPT reads this to decide <em>when</em> to call. Write it in English, for the model.</li>
+      <li><code>topic</code> — Required argument. What they want to see, e.g. billing.</li>
+      <li><code>preferred_time=""</code> — Optional. Empty string if they did not say when. The <code>=""</code> is the default.</li>
+      <li><code>add_action(...)</code> — The side effect. A row in the actions table.</li>
+      <li><code>return "Booked a demo..."</code> — Tool output for GPT. GPT will paraphrase this to the user.</li>
+    </ul>
+
+    <h3>save_fact and request_handoff</h3>
+    <div class="why"><strong>Why both</strong><code>save_fact</code> stores memory in the middle of the tool loop, before <code>node_save</code>’s extra GPT extraction. <code>request_handoff</code> is the escape hatch: the person wants a human, or the bot is stuck. It logs an action and later <code>node_save</code> sets <code>control</code> to <code>handoff</code> so <code>chat.py</code> stops.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>@tool
+def save_fact(fact: str) -&gt; str:
+    &quot;&quot;&quot;Save a useful fact about this person.&quot;&quot;&quot;
+    stored = add_fact(fact)
+    return f&quot;Already stored: {fact}&quot; if stored is None else f&quot;Stored fact: {stored}&quot;
+</code></pre>
+
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>@tool
+def request_handoff(reason: str) -&gt; str:
+    &quot;&quot;&quot;Hand the conversation to a human when the person asks, or when you cannot help.&quot;&quot;&quot;
+    add_action(&quot;handoff&quot;, {&quot;reason&quot;: reason})
+    return f&quot;A human will follow up. Reason: {reason}&quot;
+</code></pre>
+
+    <ul class="lines">
+      <li><code>save_fact</code> calls <code>add_fact</code> — Same duplicate rules as before. The message back to GPT differs if it was already stored.</li>
+      <li><code>request_handoff(reason)</code> — <code>reason</code> is free text, e.g. “they asked for a human.”</li>
+    </ul>
+    <p><code>TOOLS</code> is the list we bind on GPT and pass to <code>ToolNode</code>. A fourth tool must be appended here or the model never sees it.</p>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>TOOLS = [book_demo, save_fact, request_handoff]
+</code></pre>
+
+
+    <h2>State — the backpack</h2>
+    <div class="why"><strong>Why a TypedDict</strong>LangGraph needs to know what keys exist. Each node returns some of these keys. <code>total=False</code> means a node may omit keys it does not touch. Retrieval never returns <code>reply</code>. Save never returns <code>knowledge</code>.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>class State(TypedDict, total=False):
+    message: str
+    history: list[dict]
+    facts: list[str]
+    knowledge: list[dict]
+    messages: Annotated[list[AnyMessage], add_messages]
+    control: str
+    reply: str
+    sources: list[str]
+</code></pre>
+
+    <ul class="lines">
+      <li><code>message</code> — The string the human just typed this turn. Only <code>reply()</code> sets this at the start.</li>
+      <li><code>history</code> — Last 20 saved lines, from SQLite. Used to build the GPT prompt.</li>
+      <li><code>facts</code> — Memory strings for this person, already filtered by <code>relevant_facts</code>.</li>
+      <li><code>knowledge</code> — The retrieved chunks: list of <code>{source, body}</code>.</li>
+      <li><code>messages</code> — The live GPT transcript for <em>this turn</em>, including tool calls. <code>Annotated[..., add_messages]</code> means “append new items, do not replace the list.” That is how the tool loop can grow.</li>
+      <li><code>control</code> — <code>continue</code> (keep chatting), <code>end</code> (user said goodbye), or <code>handoff</code> (human needed). <code>chat.py</code> reads this.</li>
+      <li><code>reply</code> — The final assistant sentence to show the user.</li>
+      <li><code>sources</code> — Citation strings for the terminal to print.</li>
+    </ul>
+
+    <h2>Fill the prompt, pick facts</h2>
+    <h3>load_prompt — the A in RAG (augment)</h3>
+    <div class="why"><strong>Why</strong><code>prompt.md</code> has holes. This function reads the file and fills them. Without it, GPT would see the literal text <code>{knowledge}</code> and none of the retrieved pages.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def load_prompt(knowledge: list[dict], facts: list[str]) -&gt; str:
+    template = PROMPT_PATH.read_text(encoding=&quot;utf-8&quot;)
+    knowledge_text = &quot;\n\n&quot;.join(f&quot;[{item[&#x27;source&#x27;]}]\n{item[&#x27;body&#x27;]}&quot; for item in knowledge) or &quot;No matching knowledge yet.&quot;
+    facts_text = &quot;\n&quot;.join(f&quot;- {f}&quot; for f in facts) or &quot;No stored facts yet.&quot;
+    return template.replace(&quot;{knowledge}&quot;, knowledge_text).replace(&quot;{facts}&quot;, facts_text)
+</code></pre>
+
+    <ul class="lines">
+      <li><code>knowledge</code> — The list <code>retrieve</code> produced.</li>
+      <li><code>facts</code> — The list <code>relevant_facts</code> produced.</li>
+      <li>Join chunks as <code>[source]</code> then body — GPT can see which chunk a paragraph came from.</li>
+      <li><code>or "No matching knowledge yet."</code> — If retrieve returned <code>[]</code>. Honest empty state. Combined with “do not invent,” GPT should refuse.</li>
+      <li><code>.replace("{knowledge}", ...).replace("{facts}", ...)</code> — Simple string replace. The placeholders in <code>prompt.md</code> must match these exact spellings, including braces.</li>
+      <li>Return value — The full system prompt as one string. <code>node_agent</code> wraps this in <code>SystemMessage</code>.</li>
+    </ul>
+
+    <h3>relevant_facts(question)</h3>
+    <div class="why"><strong>Why</strong>If Sam told us 3 facts, send all 3. If the table grew to 400, sending all of them would drown the prompt. Then we rank by word overlap with the question and keep 5. Hybrid: cheap when small, filtered when large. We did not stand up a second Chroma collection for memory. For this bot, that would be extra ceremony.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def relevant_facts(question: str) -&gt; list[str]:
+    facts = all_facts()
+    if len(facts) &lt;= FACT_LIMIT:
+        return facts
+    words = {w for w in re.findall(r&quot;[a-z0-9]+&quot;, question.lower()) if len(w) &gt; 2}
+    ranked = sorted(facts, key=lambda f: sum(1 for w in words if w in f.lower()), reverse=True)
+    return ranked[:RAG_K]
+</code></pre>
+
+    <ul class="lines">
+      <li><code>all_facts()</code> — Read the whole table.</li>
+      <li><code>if len(facts) &lt;= FACT_LIMIT: return facts</code> — The common case. No scoring.</li>
+      <li>Else rank by how many question-words appear in the fact — Same idea as retrieve’s fallback.</li>
+      <li><code>return ranked[:RAG_K]</code> — Reuse 5. Good enough here.</li>
+    </ul>
+
+    <h2>The graph nodes — four workers</h2>
+    <p>Each of these is a function LangGraph will call. They all take <code>state</code> (the backpack) and return a dict of updates. LangGraph merges that dict into state. You do not return the whole backpack.</p>
+
+    <h3>node_retrieve</h3>
+    <div class="why"><strong>Why first</strong>GPT must not talk before we have pages and memory. This node does no GPT. It fills the backpack: knowledge, sources, history, facts.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def node_retrieve(state: State) -&gt; dict:
+    knowledge = retrieve(state[&quot;message&quot;])
+    return {
+        &quot;knowledge&quot;: knowledge,
+        &quot;sources&quot;: [item[&quot;source&quot;] for item in knowledge if item.get(&quot;source&quot;)],
+        &quot;history&quot;: history(),
+        &quot;facts&quot;: relevant_facts(state[&quot;message&quot;]),
+    }
+</code></pre>
+
+    <ul class="lines">
+      <li><code>state["message"]</code> — The user text <code>reply()</code> put in the backpack.</li>
+      <li><code>retrieve(...)</code> — RAG lookup. May hit Chroma or word overlap.</li>
+      <li><code>sources = [item["source"] for ...]</code> — Flatten citations for the terminal. Skip empty source strings.</li>
+      <li><code>history()</code> — SQLite short-term memory.</li>
+      <li><code>relevant_facts(...)</code> — SQLite long-term memory, maybe filtered.</li>
+      <li>Return four keys — LangGraph merges them. Next node is agent.</li>
+    </ul>
+
+    <h3>node_agent</h3>
+    <div class="why"><strong>Why</strong>This is generation (the G in RAG) and the brain of the tool loop. First visit this turn: build a full prompt and call GPT. Later visit (after a tool): do not rebuild the system prompt; send the growing transcript back so GPT can read the tool result and write a sentence.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def node_agent(state: State) -&gt; dict:
+    model = llm().bind_tools(TOOLS)
+    existing = state.get(&quot;messages&quot;) or []
+    if existing:
+        return {&quot;messages&quot;: [model.invoke(existing)]}
+    prompt = [SystemMessage(content=load_prompt(state.get(&quot;knowledge&quot;) or [], state.get(&quot;facts&quot;) or []))]
+    for item in state.get(&quot;history&quot;) or []:
+        if item[&quot;role&quot;] == &quot;assistant&quot;:
+            prompt.append(AIMessage(content=item[&quot;content&quot;]))
+        else:
+            prompt.append(HumanMessage(content=item[&quot;content&quot;]))
+    prompt.append(HumanMessage(content=state[&quot;message&quot;]))
+    return {&quot;messages&quot;: prompt + [model.invoke(prompt)]}
+</code></pre>
+
+    <ul class="lines">
+      <li><code>llm().bind_tools(TOOLS)</code> — A GPT client that is allowed to emit tool calls. <code>bind_tools</code> does not run the tools. It only advertises them.</li>
+      <li><code>existing = state.get("messages") or []</code> — If we already have a transcript this turn, we are on a later loop. <code>.get</code> returns <code>None</code> if the key is missing; <code>or []</code> turns that into an empty list.</li>
+      <li><code>if existing: invoke(existing)</code> — Second (or third) visit. The list already contains the tool result from <code>ToolNode</code>.</li>
+      <li><code>SystemMessage(load_prompt(...))</code> — First visit. Manners + chunks + facts.</li>
+      <li>Replay history as <code>AIMessage</code> or <code>HumanMessage</code> — So GPT knows earlier turns.</li>
+      <li>Append <code>HumanMessage(state["message"])</code> — The new question last.</li>
+      <li>Return <code>prompt + [model.invoke(prompt)]</code> — Store both the prompt and GPT’s reply. GPT’s reply might be text, or a tool call, or both.</li>
+    </ul>
+
+    <h3>route_agent — the fork, not a node</h3>
+    <div class="why"><strong>Why</strong>LangGraph needs a function that looks at state and returns the <em>name of the next node</em> as a string. This is that function. It is the whole “should we use a tool?” decision.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def route_agent(state: State) -&gt; str:
+    messages = state.get(&quot;messages&quot;) or []
+    last = messages[-1] if messages else None
+    if last is not None and getattr(last, &quot;tool_calls&quot;, None):
+        return &quot;tools&quot;
+    return &quot;save&quot;
+</code></pre>
+
+    <ul class="lines">
+      <li><code>last = messages[-1]</code> — GPT’s latest output. <code>[-1]</code> means the last item in the list.</li>
+      <li><code>getattr(last, "tool_calls", None)</code> — If GPT requested functions, this is a non-empty list. If GPT just spoke, it is empty or missing. <code>getattr</code> is used because not every message object has that attribute.</li>
+      <li>Return <code>"tools"</code> or <code>"save"</code> — Must match the names we registered in <code>get_engine</code>. A typo here silently breaks the graph.</li>
+    </ul>
+
+    <h3>node_save</h3>
+    <div class="why"><strong>Why last</strong>The user needs a sentence. The database needs both lines. Memory needs any new facts. <code>chat.py</code> needs a control flag. This node does all of that after GPT is done looping with tools.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def node_save(state: State) -&gt; dict:
+    messages = state.get(&quot;messages&quot;) or []
+    reply = &quot;&quot;
+    used_handoff = False
+    for item in reversed(messages):
+        if getattr(item, &quot;name&quot;, &quot;&quot;) == &quot;request_handoff&quot;:
+            used_handoff = True
+        if isinstance(item, AIMessage) and item.content and not getattr(item, &quot;tool_calls&quot;, None):
+            reply = item.content if isinstance(item.content, str) else str(item.content)
+            break
+    text = f&quot;{state.get(&#x27;message&#x27;, &#x27;&#x27;)} {reply}&quot;.lower()
+    control = &quot;continue&quot;
+    if used_handoff or &quot;hand off&quot; in text or &quot;talk to a human&quot; in text:
+        control = &quot;handoff&quot;
+    elif any(word in text for word in (&quot;goodbye&quot;, &quot;bye&quot;, &quot;that&#x27;s all&quot;, &quot;thats all&quot;)):
+        control = &quot;end&quot;
+
+    add_message(&quot;user&quot;, state.get(&quot;message&quot;, &quot;&quot;))
+    add_message(&quot;assistant&quot;, reply)
+
+    try:
+        extracted = llm().invoke(
+            [
+                SystemMessage(content=&quot;Extract facts about the person. Return JSON only: {\&quot;facts\&quot;: [], \&quot;forget\&quot;: []}. No company knowledge.&quot;),
+                HumanMessage(content=f&quot;User: {state.get(&#x27;message&#x27;, &#x27;&#x27;)}\nAssistant: {reply}&quot;),
+            ]
+        )
+        payload = json.loads(extracted.content or &quot;{}&quot;)
+    except Exception:
+        payload = {}
+    for item in payload.get(&quot;forget&quot;) or []:
+        forget_fact(str(item))
+    for item in payload.get(&quot;facts&quot;) or []:
+        add_fact(str(item))
+    return {&quot;reply&quot;: reply or &quot;I am here when you want to continue.&quot;, &quot;control&quot;: control, &quot;facts&quot;: all_facts()}
+</code></pre>
+
+    <ul class="lines">
+      <li>Walk <code>messages</code> reversed — The final user-facing text is the last <code>AIMessage</code> that has content and no <code>tool_calls</code>. Tool-call messages are not for the user.</li>
+      <li><code>used_handoff</code> — True if a message named <code>request_handoff</code> appears. Then control becomes handoff even if the wording is polite.</li>
+      <li><code>text = user message + reply</code>, lowercased — Simple keyword checks for goodbye / talk to a human.</li>
+      <li><code>control</code> starts as <code>continue</code> — The normal case: <code>chat.py</code> keeps looping.</li>
+      <li><code>add_message</code> user then assistant — Persist this turn. Next <code>history()</code> will include it.</li>
+      <li>Second <code>llm().invoke</code> for JSON facts — A dedicated mini-prompt: extract person facts only, not company policy. So “My name is Sam” is stored even if GPT never called <code>save_fact</code>.</li>
+      <li>Forget then add — Apply corrections first, then new facts.</li>
+      <li>Return <code>reply</code>, <code>control</code>, <code>facts</code> — These keys are what <code>reply()</code> will pick out of the graph result. If reply is empty, we send a fallback sentence so the user is never staring at a blank line.</li>
+    </ul>
+
+    <h2>Wire the graph and open the door</h2>
+    <h3>ENGINE and get_engine()</h3>
+    <div class="why"><strong>Why compile once</strong>Building the graph is setup, not per-message work. We store the compiled app in <code>ENGINE</code> so the second chat line does not rebuild it. <code>compile()</code> freezes the blueprint into something with <code>.invoke()</code>.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>ENGINE = None
+</code></pre>
+
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def get_engine():
+    global ENGINE
+    if ENGINE is None:
+        graph = StateGraph(State)
+        graph.add_node(&quot;retrieve&quot;, node_retrieve)
+        graph.add_node(&quot;agent&quot;, node_agent)
+        graph.add_node(&quot;tools&quot;, ToolNode(TOOLS))
+        graph.add_node(&quot;save&quot;, node_save)
+        graph.add_edge(START, &quot;retrieve&quot;)
+        graph.add_edge(&quot;retrieve&quot;, &quot;agent&quot;)
+        graph.add_conditional_edges(&quot;agent&quot;, route_agent, {&quot;tools&quot;: &quot;tools&quot;, &quot;save&quot;: &quot;save&quot;})
+        graph.add_edge(&quot;tools&quot;, &quot;agent&quot;)
+        graph.add_edge(&quot;save&quot;, END)
+        ENGINE = graph.compile()
+    return ENGINE
+</code></pre>
+
+    <ul class="lines">
+      <li><code>global ENGINE</code> — We assign to the module-level variable. Without <code>global</code>, Python would create a local <code>ENGINE</code> and the cache would not work.</li>
+      <li><code>StateGraph(State)</code> — Empty graph whose backpack type is <code>State</code>.</li>
+      <li><code>add_node("retrieve", node_retrieve)</code> — Register. The string name is what edges will use.</li>
+      <li><code>add_node("tools", ToolNode(TOOLS))</code> — We did not write a runner. <code>ToolNode</code> looks at <code>tool_calls</code>, runs the matching Python function, appends the result to <code>messages</code>.</li>
+      <li><code>add_edge(START, retrieve)</code> — Every run begins here.</li>
+      <li><code>add_edge(retrieve, agent)</code> — Always. No skipping lookup.</li>
+      <li><code>add_conditional_edges(agent, route_agent, {tools, save})</code> — After agent, call <code>route_agent</code>. Map its return value to a node.</li>
+      <li><code>add_edge(tools, agent)</code> — The loop. After a tool runs, GPT speaks again.</li>
+      <li><code>add_edge(save, END)</code> — Stop. <code>invoke()</code> returns the full state.</li>
+    </ul>
+
+    <h3>reply(message) — the only public door</h3>
+    <div class="why"><strong>Why one function</strong><code>chat.py</code>, and later a website, should not know about graphs. They call <code>reply("hello")</code> and get a dict. All the complexity stays inside <code>bot.py</code>.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def reply(message: str) -&gt; dict:
+    &quot;&quot;&quot;Send one user message. Returns reply, control, facts, sources.&quot;&quot;&quot;
+    text = (message or &quot;&quot;).strip()
+    if not text:
+        return {&quot;reply&quot;: &quot;Say something and I will continue.&quot;, &quot;control&quot;: &quot;continue&quot;, &quot;facts&quot;: [], &quot;sources&quot;: []}
+    if not OPENAI_API_KEY:
+        raise RuntimeError(&quot;Set OPENAI_API_KEY in .env&quot;)
+    db().close()
+    result = get_engine().invoke({&quot;message&quot;: text})
+    return {
+        &quot;reply&quot;: result.get(&quot;reply&quot;) or &quot;&quot;,
+        &quot;control&quot;: result.get(&quot;control&quot;) or &quot;continue&quot;,
+        &quot;facts&quot;: result.get(&quot;facts&quot;) or [],
+        &quot;sources&quot;: result.get(&quot;sources&quot;) or [],
+    }
+</code></pre>
+
+    <ul class="lines">
+      <li><code>message</code> — Raw user text. May be <code>None</code> or only spaces.</li>
+      <li>Strip, empty → polite nudge — Do not spend an API call on a blank line.</li>
+      <li>No API key → <code>RuntimeError</code> — Fail loudly. A missing key is a setup problem, not a chat problem.</li>
+      <li><code>db().close()</code> — Touch the database once so tables exist even before the first save.</li>
+      <li><code>get_engine().invoke({"message": text})</code> — Start the graph with only one key. Other keys get filled by nodes. This is the line that “runs the bot.”</li>
+      <li>Return four keys — <code>reply</code> (string), <code>control</code> (continue/end/handoff), <code>facts</code> (list), <code>sources</code> (list). Extra graph internals stay hidden.</li>
+    </ul>
+
+    <h2>Ingest — turning a file into searchable knowledge</h2>
+    <h3>_read_source(path)</h3>
+    <div class="why"><strong>Why</strong>Ingest should not care whether you gave it Word or markdown. This helper returns a plain string of paragraphs, or an empty string if the type is unknown (then ingest skips it).</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def _read_source(path: Path) -&gt; str:
+    if path.suffix.lower() in {&quot;.md&quot;, &quot;.txt&quot;}:
+        return path.read_text(encoding=&quot;utf-8&quot;)
+    if path.suffix.lower() == &quot;.docx&quot;:
+        from docx import Document
+
+        return &quot;\n\n&quot;.join(p.text.strip() for p in Document(str(path)).paragraphs if p.text.strip())
+    return &quot;&quot;
+</code></pre>
+
+    <ul class="lines">
+      <li><code>path.suffix</code> — The extension: <code>.md</code>, <code>.txt</code>, <code>.docx</code>. Compared in lowercase so <code>.MD</code> still works.</li>
+      <li><code>read_text</code> for md/txt — The file already is text.</li>
+      <li><code>from docx import Document</code> — Imported here, only if we actually see a Word file.</li>
+      <li>Join non-empty paragraphs — Word files have many blank paragraphs. We drop those.</li>
+    </ul>
+
+    <h3>ingest(path)</h3>
+    <div class="why"><strong>Why</strong>This is the factory. Input: a file path or a folder path. Output: OKF documents + OKF chunks + a rebuilt Chroma index. We delete old OKF first so the bot only knows what you ingested last — no stale pages from last week.</div>
+    <div class="lang">Put this in your file · python — bot.py</div>
+<pre><code>def ingest(path: str | Path) -&gt; dict:
+    &quot;&quot;&quot;Turn a file (or a folder of files) into searchable knowledge.&quot;&quot;&quot;
+    target = Path(path).expanduser().resolve()
+    if not target.exists():
+        raise FileNotFoundError(f&quot;Nothing at that path: {target}&quot;)
+
+    allowed = {&quot;.md&quot;, &quot;.txt&quot;, &quot;.docx&quot;}
+    if target.is_dir():
+        sources = [p for p in target.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+    else:
+        sources = [target]
+    sources = [p for p in sources if p.suffix.lower() in allowed]
+    if not sources:
+        raise FileNotFoundError(
+            &quot;No .md, .txt, or .docx at that path. Put any company files in knowledge/raw/ &quot;
+            &quot;or pass a path. Chat still works without ingest; there will just be no company knowledge.&quot;
+        )
+
+    for old in OKF_DIR.glob(&quot;*.md&quot;):
+        old.unlink()
+    for old in CHUNK_DIR.glob(&quot;*.md&quot;):
+        old.unlink()
+
+    chunk_paths = []
+    for source in sources:
+        body = _read_source(source)
+        if not body:
+            continue
+        concept_id = slug(source.stem)
+        write_okf(
+            OKF_DIR / f&quot;{concept_id}.md&quot;,
+            {
+                &quot;type&quot;: &quot;Document&quot;,
+                &quot;title&quot;: source.stem,
+                &quot;source_file&quot;: source.name,
+            },
+            body,
+        )
+        for index, (section, text) in enumerate(chunk_text(body), start=1):
+            chunk_path = CHUNK_DIR / f&quot;{concept_id}-{slug(section) or &#x27;part&#x27;}-{index:02d}.md&quot;
+            write_okf(
+                chunk_path,
+                {
+                    &quot;type&quot;: &quot;Chunk&quot;,
+                    &quot;title&quot;: section or source.stem,
+                    &quot;parent&quot;: concept_id,
+                    &quot;section&quot;: section,
+                    &quot;source_file&quot;: source.name,
+                },
+                text,
+            )
+            chunk_paths.append(chunk_path)
+
+    indexed = index_chunks(chunk_paths)
+    return {&quot;files&quot;: len(sources), &quot;chunks&quot;: indexed}
+</code></pre>
+
+    <ul class="lines">
+      <li><code>path</code> — String or Path. <code>expanduser()</code> understands <code>~</code>. <code>resolve()</code> makes it absolute.</li>
+      <li>If not exists → <code>FileNotFoundError</code> — Beginner trap: <code>FILE_PATH</code> pointed at a machine that is not yours. Fix the path.</li>
+      <li><code>allowed = {.md, .txt, .docx}</code> — Anything else is ignored. This project does not parse PDFs.</li>
+      <li>Folder vs file — A folder: every allowed file inside (not nested subfolders). A file: a list of one.</li>
+      <li><code>unlink</code> old OKF — Delete previous documents and chunks. Clean rebuild.</li>
+      <li><code>concept_id = slug(source.stem)</code> — <code>stem</code> is the filename without extension. <code>office-guide.md</code> → <code>office-guide</code>.</li>
+      <li>Write one Document OKF — Full body in <code>knowledge/okf/</code>. Human-readable backup of the source.</li>
+      <li>For each chunk: write a Chunk OKF — <code>parent=concept_id</code> ties the page to the document. <code>section</code> is the heading from that file. The filename includes a 01, 02 counter so two headings with the same name cannot clash.</li>
+      <li><code>index_chunks(chunk_paths)</code> — Build Chroma from those chunk files.</li>
+      <li>Return <code>{files, chunks}</code> — Counts. <code>ingest.py</code> prints them so you know it worked.</li>
+    </ul>
+    <p><code>bot.py</code> is complete. Two tiny files still call it.</p>
+
+    <h2>ingest.py — a pointer, not an engine</h2>
+    <p>Why a separate file? So you can change the path and run ingest without opening <code>bot.py</code>. This file does not search, chunk, or call GPT. It only decides <em>which path</em> to hand to <code>ingest()</code>.</p>
+    <div class="lang">Put this in your file · python — ingest.py</div>
+<pre><code>&quot;&quot;&quot;Turn company files into searchable knowledge.
+
+Drop any .md, .txt, or .docx files in knowledge/raw/, then:
+
+    python ingest.py
+
+Or pass one file or folder:
+
+    python ingest.py /path/to/your-doc.md
+
+There is no required filename or section layout. If you ingest nothing, chat still
+works — the bot just has no company files to look up.
+&quot;&quot;&quot;
+
+from pathlib import Path
+import sys
+
+from bot import RAW_DIR, ingest
+
+# Default: every allowed file in knowledge/raw/. Override with a CLI path.
+FILE_PATH = str(RAW_DIR)
+
+
+if __name__ == &quot;__main__&quot;:
+    path = sys.argv[1] if len(sys.argv) &gt; 1 else FILE_PATH
+    if not path.strip():
+        raise SystemExit(&quot;Set FILE_PATH in ingest.py, or run: python ingest.py /path/to/file.md&quot;)
+    summary = ingest(path)
+    print(f&quot;Ingested {summary[&#x27;files&#x27;]} file(s) from {Path(path).expanduser()} into {summary[&#x27;chunks&#x27;]} chunks.&quot;)
+</code></pre>
+
+    <ul class="lines">
+      <li><code>from bot import RAW_DIR, ingest</code> — Load <code>bot.py</code> (which loads <code>.env</code> and creates folders). <code>RAW_DIR</code> is <code>knowledge/raw/</code>.</li>
+      <li><code>FILE_PATH = str(RAW_DIR)</code> — Default is the whole incoming folder, not one magic filename. Drop any company files there. Or pass a path on the command line.</li>
+      <li><code>sys.argv[1] if len(sys.argv) > 1 else FILE_PATH</code> — If you ran <code>python ingest.py some/file.md</code>, use that. Otherwise use the folder. <code>sys.argv</code> is the list of words you typed after <code>python</code>.</li>
+      <li>Empty path → exit — An empty string is not a file.</li>
+      <li><code>summary = ingest(path)</code> — All the real work.</li>
+      <li>Print files and chunks — If you see file and chunk counts, it worked. If the folder is empty, you get a clear error. You can still run <code>python chat.py</code>.</li>
+    </ul>
+    <div class="note">
+      <strong>What you should run</strong>
+      Put company files (any names) in <code>knowledge/raw/</code>, then <code>python ingest.py</code>. After it runs, open <code>knowledge/okf/</code> and <code>knowledge/okf/chunks/</code>. To chat with no company files at all, skip ingest and run <code>python chat.py</code>.
+    </div>
+
+    <h2>chat.py — the front desk</h2>
+    <p>Why so small? Because the product is <code>reply()</code>. The terminal is one of many possible doors. A future website will call the same function.</p>
+    <div class="lang">Put this in your file · python — chat.py</div>
+<pre><code>&quot;&quot;&quot;Talk to the bot. Edit prompt.md to change how it speaks.&quot;&quot;&quot;
+
+from bot import reply
+
+
+def main() -&gt; None:
+    print(&quot;Type a message. Type quit to exit.&quot;)
+    while True:
+        try:
+            text = input(&quot;you&gt; &quot;).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not text:
+            continue
+        if text.lower() in {&quot;quit&quot;, &quot;exit&quot;, &quot;q&quot;}:
+            break
+        result = reply(text)
+        print(f&quot;bot&gt; {result[&#x27;reply&#x27;]}&quot;)
+        if result[&quot;sources&quot;]:
+            print(f&quot;sources&gt; {&#x27;, &#x27;.join(result[&#x27;sources&#x27;])}&quot;)
+        if result[&quot;facts&quot;]:
+            print(f&quot;facts&gt; {&#x27;; &#x27;.join(result[&#x27;facts&#x27;])}&quot;)
+        print(f&quot;control&gt; {result[&#x27;control&#x27;]}&quot;)
+        if result[&quot;control&quot;] in {&quot;end&quot;, &quot;handoff&quot;}:
+            break
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+    <ul class="lines">
+      <li><code>from bot import reply</code> — The only import. <code>chat.py</code> does not know about Chroma or LangGraph.</li>
+      <li><code>input("you&gt; ")</code> — Wait for you to type. Returns a string. The prompt <code>you&gt;</code> is just a label so you know it is your turn.</li>
+      <li><code>EOFError, KeyboardInterrupt</code> — Ctrl+D or Ctrl+C should exit cleanly, not dump a stack trace.</li>
+      <li>Empty line: <code>continue</code> — Do not call the API for an accidental Enter. <code>continue</code> means “go back to the start of the while loop.”</li>
+      <li><code>quit</code> / <code>exit</code> / <code>q</code> — Leave without involving GPT.</li>
+      <li><code>result = reply(text)</code> — The whole engine. <code>result</code> is a dict with keys reply, control, facts, sources.</li>
+      <li>Print those keys — So you can see RAG citations, memory, and whether the loop should stop.</li>
+      <li>If control is <code>end</code> or <code>handoff</code>: <code>break</code> — Leave the while loop. <code>continue</code> as a control value is different: it means “keep chatting.”</li>
+      <li><code>if __name__ == "__main__"</code> — Run <code>main()</code> only when you type <code>python chat.py</code>, not when some other file imports <code>chat.py</code>.</li>
+    </ul>
+
+    <h2>One message, in slow motion</h2>
+    <p>You can do this with or without ingest. First, no company files:</p>
+    <div class="term"><span class="you">you&gt;</span> What are your opening hours?</div>
+    <ol>
+      <li><code>chat.py</code> calls <code>reply("What are your opening hours?")</code>.</li>
+      <li><code>reply</code> starts the graph with <code>message</code> set to that string.</li>
+      <li><code>node_retrieve</code> calls <code>retrieve</code>. With nothing ingested, knowledge is empty. <code>history</code> and <code>facts</code> are empty on the first turn.</li>
+      <li><code>load_prompt</code> puts “No matching knowledge yet.” where <code>{knowledge}</code> was.</li>
+      <li><code>node_agent</code> sends that to GPT. Because <code>prompt.md</code> says do not invent, the bot should say it does not know.</li>
+      <li><code>route_agent</code> sees no <code>tool_calls</code> → <code>save</code>.</li>
+      <li><code>node_save</code> stores both lines. Memory and tools still work on later turns.</li>
+    </ol>
+    <p>If you had dropped a real company file in <code>knowledge/raw/</code> and ingested, step 3 would return matching chunks and step 5 would answer from those pages. Citations in <code>sources&gt;</code> would use that file’s name and headings.</p>
+    <p>If you type “book a demo about billing,” step 5 emits a tool call, we go to tools, <code>book_demo</code> inserts an actions row, then GPT writes “You’re booked.” That loop is why LangGraph exists. It does not need a handbook.</p>
+
+    <h2>Checklist</h2>
+    <p>Every name below is in this repo’s <code>bot.py</code>. Each tool function must have <code>@tool</code> on the line above <code>def</code>.</p>
+    <ul class="check">
+      <li><code>llm</code></li><li><code>db</code></li><li><code>now</code></li>
+      <li><code>add_message</code></li><li><code>history</code></li><li><code>all_facts</code></li>
+      <li><code>add_fact</code></li><li><code>forget_fact</code></li><li><code>add_action</code></li>
+      <li><code>write_okf</code></li><li><code>parse_okf</code></li><li><code>slug</code></li>
+      <li><code>chunk_text</code></li><li><code>chroma</code></li><li><code>index_chunks</code></li>
+      <li><code>retrieve</code></li><li><code>book_demo</code></li><li><code>save_fact</code></li>
+      <li><code>request_handoff</code></li><li><code>load_prompt</code></li><li><code>relevant_facts</code></li>
+      <li><code>node_retrieve</code></li><li><code>node_agent</code></li><li><code>route_agent</code></li>
+      <li><code>node_save</code></li><li><code>get_engine</code></li><li><code>reply</code></li>
+      <li><code>_read_source</code></li><li><code>ingest</code></li>
+    </ul>
+
+    <h2>Run, then poke it</h2>
+    <div class="lang">Terminal</div>
+<pre><code>python chat.py
+# optional, when you have company files in knowledge/raw/:
+python ingest.py
+python chat.py
+</code></pre>
+    <p>After ingest you should see files in <code>knowledge/okf/</code> and <code>knowledge/okf/chunks/</code>, plus a folder <code>data/chroma/</code>. After the first chat turn, <code>data/bot.db</code> appears. If you skipped ingest, chat still starts; <code>sources&gt;</code> will be empty.</p>
+
+    <div class="scene">
+      <h3>Scenario 1 — RAG (only if you ingested company files)</h3>
+      <div class="term">
+        <div><span class="you">you&gt;</span> Ask something that is actually in the file you dropped in knowledge/raw/</div>
+        <div><span class="ok">bot&gt;</span> An answer drawn from those pages…</div>
+        <div><span class="dim">sources&gt; your-file#SomeHeading</span></div>
+      </div>
+      <p>The heading names come from their document. If you ingested nothing, this question should get “I don’t know,” not a made-up policy. If the bot invents, check that <code>load_prompt</code> is filling <code>{knowledge}</code> and that <code>prompt.md</code> still says do not invent.</p>
+    </div>
+    <div class="scene">
+      <h3>Scenario 2 — memory (the person, not the company)</h3>
+      <div class="term">
+        <div><span class="you">you&gt;</span> My name is Sam.</div>
+        <div><span class="dim">facts&gt; User’s name is Sam</span></div>
+        <div><span class="you">you&gt;</span> What is my name?</div>
+        <div><span class="ok">bot&gt;</span> Your name is Sam.</div>
+      </div>
+      <p>That fact sat in SQLite, not in Chroma. Company RAG and person memory are two piles on purpose. Mixing them would make “Sam” look like a product name.</p>
+    </div>
+    <div class="scene">
+      <h3>Scenario 3 — tool loop</h3>
+      <div class="term">
+        <div><span class="you">you&gt;</span> Book a demo about billing tomorrow at 3pm.</div>
+        <div><span class="ok">bot&gt;</span> You’re booked…</div>
+      </div>
+      <p>If this only talks and never books, you probably missed <code>@tool</code> or the <code>TOOLS</code> list. The graph would have no function to run.</p>
+    </div>
+    <div class="scene">
+      <h3>Scenario 4 — handoff / goodbye</h3>
+      <div class="term">
+        <div><span class="you">you&gt;</span> I want to talk to a human.</div>
+        <div><span class="dim">control&gt; handoff</span></div>
+      </div>
+      <p><code>chat.py</code> stops. That is conversation control, not RAG. “Goodbye” should set control to <code>end</code>.</p>
+    </div>
+
+    <h2>Three experiments so it sticks</h2>
+    <ol>
+      <li>Add “Always answer in simple English” to <code>prompt.md</code>. Do not touch Python. The voice should change. That file is live.</li>
+      <li>Drop any real company file in <code>knowledge/raw/</code>, ingest, ask a question that is in that file. Then change a sentence in the file, ingest again, ask again. The answer should follow the file. That is RAG.</li>
+      <li>Open a chunk file in <code>knowledge/okf/chunks/</code>. Read the YAML at the top. That is OKF. You are looking at what the bot searched.</li>
+    </ol>
+
+    <h2>Conclusion</h2>
+    <p>Company files in <code>knowledge/raw/</code> are optional and unnamed. Ingest labels them (OKF) and indexes them (Chroma). <code>retrieve</code> picks pages. <code>load_prompt</code> pastes them. LangGraph orders lookup → GPT → maybe tools → save. GPT only writes. <code>prompt.md</code> decides manners. <code>data/bot.db</code> remembers the person. Skip ingest and you still have a bot — just not one that knows a company’s docs.</p>
+    <div class="pull">When you add a UI, call reply(). When you add a real calendar, change the body of book_demo. When you add a second product, put a new file in knowledge/raw and ingest. Do not rebuild the machine.</div>
+    <footer class="meta">Function bodies in this article are copied from the current bot.py, ingest.py, chat.py, and prompt.md. If those files change, treat the Python as the source of truth.</footer>
+  </article>
+  <script>mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "_note": "SAMPLE VALUES copied from the UI mockup (Smith v. Smith). Replace every field with the real matter before drafting anything real. This block prints on the caption of every PDF.",
+  "name": "Smith v. Smith",
+  "docket": "FM-14-000412-26",
+  "county": "Morris County",
+  "court": [
+    "SUPERIOR COURT OF NEW JERSEY",
+    "CHANCERY DIVISION, FAMILY PART",
+    "MORRIS COUNTY"
+  ],
+  "action": "Civil Action",
+  "plaintiff": "JOHN SMITH",
+  "defendant": "JANE SMITH",
+  "firm_block": [
+    "TANYA FREEMAN LAW, LLC",
+    "100 Eagle Rock Avenue, Suite 105",
+    "East Hanover, New Jersey 07936",
+    "Attorneys for Plaintiff"
+  ],
+  "bates_prefix": "SMITH"
+}
