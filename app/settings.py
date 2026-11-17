@@ -76,7 +76,8 @@ HISTORY_LIMIT = 20
 FACT_LIMIT = 20
 CHUNK_SIZE = 2000
 MAX_CHUNKS_PER_FILE = 250  # unused for case folders (not indexed); kept for ingest helpers
-KB_MAX_CHUNKS_PER_FILE = 6000  # big reference books (statutes, court rules)
+KB_CHUNK_SIZE = 4500  # larger passages → fewer Qdrant Cloud embedding calls for big books
+KB_MAX_CHUNKS_PER_FILE = 1800  # hard cap so one 9MB book cannot create thousands of vectors
 
 # Retrieval (knowledge base only — case folders are not searched)
 RAG_K_KB = 4  # passages from the knowledge base

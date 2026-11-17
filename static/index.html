@@ -814,7 +814,7 @@ async function uploadFiles(fileList, folderId, kbId) {
       S = next; renderSide();
     }
     if (good.length) {
-      ui.upload = { title: `Added ${good.length} ${good.length === 1 ? 'file' : 'files'} to ${target.label}`, right: toKb ? 'Indexed' : 'Saved', pct: 100 };
+      ui.upload = { title: `Added ${good.length} ${good.length === 1 ? 'file' : 'files'} to ${target.label}`, right: toKb ? 'Indexing…' : 'Saved', pct: 100 };
       renderUpload();
       setTimeout(() => { ui.upload = null; renderUpload(); }, 4000);
     } else ui.upload = null;

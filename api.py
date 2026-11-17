@@ -27,7 +27,15 @@ from app.bot import reply
 from app.case_file import prepare_case_context
 from app.drafts import draft_file, file_name, get_draft, save_draft
 from app.graph import reset_engine
-from app.ingest import ALLOWED, ingest_file, kb_source, remove_kb_file, remove_library_file, start_background_sync, sync_all
+from app.ingest import (
+    ALLOWED,
+    kb_source,
+    remove_kb_file,
+    remove_library_file,
+    start_background_sync,
+    start_kb_ingest,
+    sync_all,
+)
 from app.okf import parse_okf
 from app.rag import kb_enabled
 from app.settings import (
@@ -231,18 +239,21 @@ async def upload_kb_files(source: str = Form(...), files: list[UploadFile] = Fil
     if sum(len(p) for p in payloads) > UPLOAD_BATCH_MB * 1024 * 1024:
         raise HTTPException(status_code=413, detail=f"A batch can be at most {UPLOAD_BATCH_MB} MB.")
 
-    def store_and_index() -> list[str]:
-        warnings: list[str] = []
-        dest_dir = src["dir"]
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        for name, data in zip(names, payloads):
-            dest = dest_dir / name
-            dest.write_bytes(data)
-            warnings.extend(ingest_file(key, key, dest)["warnings"])
-        return warnings
-
-    warnings = await run_in_threadpool(store_and_index)
-    return {**workspace(), "uploaded": names, "upload_warnings": warnings, "source": key}
+    dest_dir = src["dir"]
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    jobs = []
+    for name, data in zip(names, payloads):
+        dest = dest_dir / name
+        dest.write_bytes(data)
+        jobs.append((key, key, dest))
+    # Save first, index in the background (big statute/court books take minutes on Cloud Inference).
+    start_kb_ingest(jobs)
+    return {
+        **workspace(),
+        "uploaded": names,
+        "upload_warnings": [],
+        "source": key,
+    }
 
 
 @app.get("/kb/file")

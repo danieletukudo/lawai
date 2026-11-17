@@ -39,7 +39,7 @@ from .settings import (
 log = logging.getLogger("lori.vectors")
 
 LOCK = threading.RLock()
-BATCH = 32
+BATCH = 96  # larger batches = fewer round-trips to Qdrant Cloud Inference
 
 
 @lru_cache(maxsize=1)
@@ -160,10 +160,14 @@ def delete_parent(parent: str) -> None:
         )
 
 
-def upsert_chunks(paths: list[Path], progress: Callable[[int, int], None] | None = None) -> int:
-    """Send chunk text to Qdrant Cloud Inference and store the resulting vectors."""
-    docs = [doc for doc in (_doc_from_chunk(p) for p in paths) if doc]
+def upsert_records(records: list[dict], progress: Callable[[int, int], None] | None = None) -> int:
+    """Upsert in-memory chunk records (avoids re-reading thousands of OKF files)."""
+    docs = [doc for doc in records if (doc.get("body") or "").strip()]
     total = len(docs)
+    if not total:
+        return 0
+    with LOCK:
+        _ensure_collection()
     done = 0
     for start in range(0, total, BATCH):
         batch = docs[start : start + BATCH]
@@ -172,12 +176,18 @@ def upsert_chunks(paths: list[Path], progress: Callable[[int, int], None] | None
             for doc in batch
         ]
         with LOCK:
-            _ensure_collection()
             _client().upsert(collection_name=QDRANT_COLLECTION, points=points)
         done += len(batch)
         if progress:
             progress(done, total)
+        log.info("Indexed %s / %s passages", done, total)
     return done
+
+
+def upsert_chunks(paths: list[Path], progress: Callable[[int, int], None] | None = None) -> int:
+    """Send chunk files to Qdrant Cloud Inference and store the resulting vectors."""
+    docs = [doc for doc in (_doc_from_chunk(p) for p in paths) if doc]
+    return upsert_records(docs, progress)
 
 
 def search(question: str, k: int, kinds: list[str] | None = None) -> list[dict]:

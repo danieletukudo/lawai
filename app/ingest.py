@@ -18,10 +18,12 @@ from pathlib import Path
 from typing import Callable
 
 from . import vectors
-from .okf import chunk_text, parse_meta, parse_okf, slug, write_okf
+from .okf import chunk_text, parse_meta, parse_okf, section_label, slug, write_okf
 from .settings import (
     CHUNK_DIR,
+    CHUNK_SIZE,
     COURT_UPLOAD_LIMIT_MB,
+    KB_CHUNK_SIZE,
     KB_MAX_CHUNKS_PER_FILE,
     KB_SOURCES,
     LIBRARY_DIR,
@@ -57,12 +59,15 @@ def _read_pdf(path: Path) -> str:
 
 def _clean_ebook_markdown(text: str) -> str:
     """Strip e-book conversion noise (:::, {.class ...}, internal links) from big .md books."""
-    if "\n:::" not in text:
-        return text
+    # Always strip pandoc/HTML-ish attributes — Yellow/Red books use these even without :::.
     text = re.sub(r"\{[.#][^{}]*\}", "", text)
+    text = re.sub(r"\[\.?(?:bold|italic|underline)\]", "", text)
     text = re.sub(r"\[([^\[\]]*)\]\(#[^)]*\)", r"\1", text)
-    text = re.sub(r"^:::\s*h_s\s*\n(.+?)\n:::\s*$", r"## \1", text, flags=re.M)
-    text = re.sub(r"^:::.*$", "", text, flags=re.M)
+    if "\n:::" in text:
+        text = re.sub(r"^:::\s*h_s\s*\n(.+?)\n:::\s*$", r"## \1", text, flags=re.M)
+        text = re.sub(r"^:::.*$", "", text, flags=re.M)
+    # Statute titles often use --- as an em-dash; keep body readable and YAML-safe in headings.
+    text = text.replace("---", "—")
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -178,8 +183,10 @@ def ingest_file(
         if not text and not warnings:
             warnings.append(f"{path.name}: no text found (scanned image?). Listed, but Lori cannot read it.")
 
+        chunk_size = CHUNK_SIZE if kind == "library" else KB_CHUNK_SIZE
         limit = MAX_CHUNKS_PER_FILE if kind == "library" else KB_MAX_CHUNKS_PER_FILE
-        pieces = chunk_text(text, max_chunks=limit) if text else []
+        pieces = chunk_text(text, chunk_size=chunk_size, max_chunks=limit) if text else []
+        log.info("Chunked %s into %s passages (%s chars)", path.name, len(pieces), len(text))
 
         for old in _chunk_paths(cid):
             old.unlink()
@@ -200,39 +207,53 @@ def ingest_file(
             "chars": len(text),
             "chunks": len(pieces),
         }
-        write_okf(_doc_path(cid), meta, text)
+        # Parent OKF keeps a short stub — full book body is on disk in knowledge/kb/.
+        stub = text if len(text) <= 50_000 else text[:50_000] + "\n\n…[truncated for OKF; full source remains in the knowledge folder]"
+        write_okf(_doc_path(cid), meta, stub)
 
-        chunk_paths: list[Path] = []
+        records: list[dict] = []
         for index, (section, body) in enumerate(pieces, start=1):
-            chunk_path = CHUNK_DIR / f"{cid}--{index:04d}.md"
+            label = section_label(section) if section != "section" else ""
+            key = f"{cid}--{index:04d}.md"
             write_okf(
-                chunk_path,
+                CHUNK_DIR / key,
                 {
                     "type": "Chunk",
                     "kind": kind,
                     "folder": folder,
                     "title": title,
                     "parent": cid,
-                    "section": section if section != "section" else "",
+                    "section": label,
                     "source_file": path.name,
                     "index": index,
                 },
                 body,
             )
-            chunk_paths.append(chunk_path)
+            records.append(
+                {
+                    "key": key,
+                    "body": body,
+                    "kind": kind,
+                    "folder": folder,
+                    "parent": cid,
+                    "title": title,
+                    "section": label,
+                    "source_file": path.name,
+                }
+            )
 
         stored = 0
-        if chunk_paths:
+        if records:
             try:
-                stored = vectors.upsert_chunks(chunk_paths, progress)
+                stored = vectors.upsert_records(records, progress)
                 meta["vectors"] = stored
-                write_okf(_doc_path(cid), meta, text)
+                write_okf(_doc_path(cid), meta, stub)
             except Exception as exc:
                 log.exception("Vector index failed for %s", path.name)
                 warnings.append(f"{path.name}: saved, but the search index failed ({exc}).")
         else:
             meta["vectors"] = 0
-            write_okf(_doc_path(cid), meta, text)
+            write_okf(_doc_path(cid), meta, stub)
 
         return {"cid": cid, "name": path.name, "chunks": len(pieces), "vectors": stored, "warnings": warnings}
 
@@ -339,6 +360,34 @@ def start_background_sync() -> None:
             STATUS.update(running=False)
 
     threading.Thread(target=run, name="lori-index-sync", daemon=True).start()
+
+
+def start_kb_ingest(jobs: list[tuple[str, str, Path]]) -> None:
+    """Index knowledge-base files in the background so the upload request returns fast."""
+
+    def run() -> None:
+        with _SYNC_LOCK:
+            for kind, folder, path in jobs:
+                STATUS.update(running=True, kind=kind, name=path.name, done=0, total=0)
+
+                def report(finished: int, total: int, _kind=kind) -> None:
+                    STATUS.update(kind=_kind, done=finished, total=total)
+
+                try:
+                    result = ingest_file(kind, folder, path, report)
+                    for warning in result["warnings"]:
+                        log.warning("%s", warning)
+                    log.info(
+                        "Indexed %s: %s chunks, %s vectors",
+                        path.name,
+                        result["chunks"],
+                        result["vectors"],
+                    )
+                except Exception:
+                    log.exception("Background ingest failed for %s", path)
+            STATUS.update(running=False, kind="", name="", done=0, total=0)
+
+    threading.Thread(target=run, name="lori-kb-ingest", daemon=True).start()
 
 
 # --- what the UI and Lori are told about the folders -------------------------

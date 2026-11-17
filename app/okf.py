@@ -12,18 +12,32 @@ from .settings import CHUNK_SIZE, MAX_CHUNKS_PER_FILE
 
 def write_okf(path: Path, meta: dict, body: str):
     path.parent.mkdir(parents=True, exist_ok=True)
-    front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+    # Keep section labels YAML-safe (ebook titles often contain --- which breaks naive parsers).
+    safe = dict(meta)
+    if "section" in safe:
+        safe["section"] = section_label(str(safe.get("section") or ""))
+    front = yaml.safe_dump(safe, sort_keys=False, allow_unicode=True, width=10_000).strip()
     path.write_text(f"---\n{front}\n---\n\n{body.strip()}\n", encoding="utf-8")
 
 
-def parse_okf(path: Path) -> tuple[dict, str]:
-    text = path.read_text(encoding="utf-8")
+def _split_front_matter(text: str) -> tuple[dict, str]:
+    """Split OKF only on a closing --- line. Values may contain --- (common in statute titles)."""
     if not text.startswith("---"):
         return {}, text.strip()
-    parts = text.split("---", 2)
-    if len(parts) < 3:
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
         return {}, text.strip()
-    return yaml.safe_load(parts[1]) or {}, parts[2].strip()
+    front_lines: list[str] = []
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            front = yaml.safe_load("".join(front_lines)) or {}
+            return front, "".join(lines[index + 1 :]).strip()
+        front_lines.append(lines[index])
+    return {}, text.strip()
+
+
+def parse_okf(path: Path) -> tuple[dict, str]:
+    return _split_front_matter(path.read_text(encoding="utf-8"))
 
 
 def parse_meta(path: Path) -> dict:
@@ -44,11 +58,25 @@ def slug(text: str) -> str:
     return out or "note"
 
 
+def section_label(text: str, limit: int = 160) -> str:
+    """Short, clean heading for chunk metadata (no ebook markup, no ---)."""
+    label = text or ""
+    label = re.sub(r"\{[.#][^{}]*\}", "", label)
+    label = re.sub(r"\[([^\[\]]*)\]\([^)]*\)", r"\1", label)
+    label = re.sub(r"\[\.?(?:bold|italic|underline)\]", "", label)
+    label = label.replace("---", "—").replace("–", "—")
+    label = re.sub(r"[\[\]\\]+", " ", label)
+    label = " ".join(label.split()).strip(" -—")
+    if len(label) > limit:
+        label = label[: limit - 1].rstrip() + "…"
+    return label
+
+
 def _split_sections(body: str) -> list[tuple[str, str]]:
     sections: list[tuple[str, list[str]]] = [("", [])]
     for line in body.splitlines():
         if line.startswith("#"):
-            sections.append((line.lstrip("#").strip(), []))
+            sections.append((section_label(line.lstrip("#").strip()), []))
         else:
             sections[-1][1].append(line)
     out = []
@@ -115,9 +143,9 @@ def chunk_text(body: str, chunk_size: int | None = None, max_chunks: int | None 
 
     # If still too many chunks (huge statute books), re-pack with a larger window.
     guard = 0
-    while len(packed) > limit and guard < 6:
+    while len(packed) > limit and guard < 8:
         guard += 1
-        size = int(size * 1.6)
+        size = int(size * 1.75)
         merged: list[tuple[str, str]] = []
         buf_h, buf_t = packed[0][0], packed[0][1]
         for heading, text in packed[1:]:
