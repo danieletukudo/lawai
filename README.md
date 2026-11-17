@@ -23,13 +23,13 @@ Run one server process only. Local Qdrant locks `data/qdrant`.
 
 | Where | What it is | Goes into OKF + RAG? |
 | --- | --- | --- |
-| Left folders: Exhibits, Pleadings, Discovery, Financials, Correspondence | The case documents. Stored in `knowledge/library/<folder>/` | Yes, automatically on upload |
-| Knowledge base: NJ Court Rules, NJ Family Law Statutes, Firm SOPs | Reference material in `knowledge/kb/court-rules/`, `knowledge/kb/statutes/`, `knowledge/firm/` | Yes, on server start |
-| Paperclip in chat | The case file for this one message | No. Chunked in memory; if it is large only the most relevant parts are sent |
+| Left folders: Exhibits, Pleadings, Discovery, Financials, Correspondence | Case document storage in `knowledge/library/<folder>/`. Drag into chat to send to Lori. | No |
+| Knowledge base: NJ Court Rules, NJ Family Law Statutes, Firm SOPs | Reference material in `knowledge/kb/court-rules/`, `knowledge/kb/statutes/`, `knowledge/firm/` | Yes, on server start / KB upload |
+| Paperclip or drag into chat | The case file for this one message | No. Chunked in memory; if it is large only the most relevant parts are sent |
 
 One chat turn:
 
-1. `app/rag.py` builds the context. If the case folders are small enough (`LIBRARY_FULL_CHARS`) Lori gets every file in full; otherwise she gets the best matching passages plus a manifest of every file. Knowledge-base passages come from the sources that are switched on.
+1. `app/rag.py` builds a case-folder inventory (names/sizes only) plus knowledge-base passages from sources that are switched on. Case-folder text arrives only when the user attaches or drags a file into chat.
 2. Lori (`prompt.md`) answers with a short chat message and, when asked for work product, one `<document ...>` block of markdown.
 3. `app/drafts.py` splits the reply. `app/pdf.py` turns the markdown into a PDF with the firm formatting (Times New Roman 12, one-inch margins, page numbers, firm block and caption from `matter.json`).
 4. The page shows what was actually used: files read, passages retrieved, parts of the attached case file, real page counts.
@@ -80,6 +80,7 @@ docker run --rm -p 8000:8000 --env-file .env lori-bot
 `render.yaml` is included. Set `GOOGLE_API_KEY` in the Render dashboard. Times New Roman is not installed on the Linux image; drop the four `.ttf` files into `fonts/` or the PDF falls back to the built-in Times face.
 
 Do not commit `.env`. Case files, reference books and `data/` are git-ignored.
+# lawai
 # lawai
 # lawai
 # lawai

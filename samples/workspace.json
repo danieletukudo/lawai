@@ -1,8 +1,17 @@
 {
   "sample": true,
-  "user": {"name": "Dana Ruiz", "initials": "DR"},
-  "matter": {"name": "Smith v. Smith", "line": "FM-14-000412-26 \u00b7 Morris County"},
-  "leap": {"text": "LEAP synced 2 min ago", "ok": true},
+  "user": {
+    "name": "Dana Ruiz",
+    "initials": "DR"
+  },
+  "matter": {
+    "name": "Smith v. Smith",
+    "line": "FM-14-000412-26 \u00b7 Morris County"
+  },
+  "leap": {
+    "text": "LEAP synced 2 min ago",
+    "ok": true
+  },
   "files_label": "142 in LEAP",
   "folders": [
     {
@@ -11,16 +20,56 @@
       "count": 96,
       "more": 92,
       "files": [
-        {"name": "Ex 01 Settlement proposal.pdf", "size": "1.2 MB", "hint": "", "readable": true},
-        {"name": "Ex 02 Joint tax return 2024.pdf", "size": "3.8 MB", "hint": "", "readable": true},
-        {"name": "Ex 03 Checking statements 2024.pdf", "size": "9.6 MB", "hint": "", "readable": true},
-        {"name": "Ex 04 Custody evaluation.pdf", "size": "2.1 MB", "hint": "", "readable": true}
+        {
+          "name": "Ex 01 Settlement proposal.pdf",
+          "size": "1.2 MB",
+          "hint": "",
+          "readable": true
+        },
+        {
+          "name": "Ex 02 Joint tax return 2024.pdf",
+          "size": "3.8 MB",
+          "hint": "",
+          "readable": true
+        },
+        {
+          "name": "Ex 03 Checking statements 2024.pdf",
+          "size": "9.6 MB",
+          "hint": "",
+          "readable": true
+        },
+        {
+          "name": "Ex 04 Custody evaluation.pdf",
+          "size": "2.1 MB",
+          "hint": "",
+          "readable": true
+        }
       ]
     },
-    {"id": "pleadings", "label": "Pleadings", "count": 18, "files": []},
-    {"id": "discovery", "label": "Discovery", "count": 14, "files": []},
-    {"id": "financials", "label": "Financials", "count": 9, "files": []},
-    {"id": "correspondence", "label": "Correspondence", "count": 5, "files": []}
+    {
+      "id": "pleadings",
+      "label": "Pleadings",
+      "count": 18,
+      "files": []
+    },
+    {
+      "id": "discovery",
+      "label": "Discovery",
+      "count": 14,
+      "files": []
+    },
+    {
+      "id": "financials",
+      "label": "Financials",
+      "count": 9,
+      "files": []
+    },
+    {
+      "id": "correspondence",
+      "label": "Correspondence",
+      "count": 5,
+      "files": []
+    }
   ],
   "upload": {
     "batch_mb": 35,
@@ -32,9 +81,36 @@
     "label": "3 of 3 active",
     "composer": "3 sources on",
     "sources": [
-      {"id": "court_rules", "label": "NJ Court Rules", "checked": true, "disabled": false, "status": "On", "tone": "ok", "hint": ""},
-      {"id": "statutes", "label": "NJ Family Law Statutes", "checked": true, "disabled": false, "status": "On", "tone": "ok", "hint": ""},
-      {"id": "firm", "label": "Firm SOPs", "checked": true, "disabled": false, "status": "On", "tone": "ok", "hint": ""}
+      {
+        "id": "court_rules",
+        "label": "NJ Court Rules",
+        "checked": true,
+        "disabled": false,
+        "status": "On",
+        "tone": "ok",
+        "hint": "",
+        "files": []
+      },
+      {
+        "id": "statutes",
+        "label": "NJ Family Law Statutes",
+        "checked": true,
+        "disabled": false,
+        "status": "On",
+        "tone": "ok",
+        "hint": "",
+        "files": []
+      },
+      {
+        "id": "firm",
+        "label": "Firm SOPs",
+        "checked": true,
+        "disabled": false,
+        "status": "On",
+        "tone": "ok",
+        "hint": "",
+        "files": []
+      }
     ]
   },
   "thread": [
@@ -61,7 +137,11 @@
         "sub": "Reply certification \u00b7 6 pages \u00b7 Draft",
         "saved": false
       },
-      "used": ["Exhibits, 96 files", "NJ Court Rules", "Firm SOP: Exhibits"]
+      "used": [
+        "Exhibits, 96 files",
+        "NJ Court Rules",
+        "Firm SOP: Exhibits"
+      ]
     }
   ],
   "draft_overrides": {
@@ -71,5 +151,6 @@
     "pct": 78,
     "over": false
   },
-  "court_split": ""
+  "court_split": "",
+  "files_heading": "Case file"
 }

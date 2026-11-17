@@ -27,7 +27,7 @@ FIRM_NAME = os.getenv("FIRM_NAME", "Tanya Freeman Law LLC")
 # Shown under the user's chat bubbles. There is no sign-in yet.
 USER_NAME = os.getenv("USER_NAME", "").strip()
 
-# --- Case folders (left panel). Files uploaded here go into OKF + RAG. -------
+# --- Case folders (left panel). Storage only; drag into chat to send to Lori. -
 LIBRARY_DIR = ROOT / "knowledge" / "library"
 LIBRARY_FOLDERS = (
     "exhibits",
@@ -41,9 +41,21 @@ LIBRARY_FOLDERS = (
 FIRM_DIR = ROOT / "knowledge" / "firm"
 KB_DIR = ROOT / "knowledge" / "kb"
 KB_SOURCES = (
-    {"id": "court_rules", "label": "NJ Court Rules", "dir": KB_DIR / "court-rules"},
-    {"id": "statutes", "label": "NJ Family Law Statutes", "dir": KB_DIR / "statutes"},
-    {"id": "firm", "label": "Firm SOPs", "dir": FIRM_DIR},
+    {
+        "id": "court_rules",
+        "label": "NJ Court Rules",
+        "dir": KB_DIR / "court-rules",
+    },
+    {
+        "id": "statutes",
+        "label": "NJ Family Law Statutes",
+        "dir": KB_DIR / "statutes",
+    },
+    {
+        "id": "firm",
+        "label": "Firm SOPs",
+        "dir": FIRM_DIR,
+    },
 )
 # Old drop folder from the sales bot. Kept so nothing breaks; no longer read.
 RAW_DIR = ROOT / "knowledge" / "raw"
@@ -63,13 +75,11 @@ SAMPLE_DIR = ROOT / "samples"
 HISTORY_LIMIT = 20
 FACT_LIMIT = 20
 CHUNK_SIZE = 2000
-MAX_CHUNKS_PER_FILE = 250  # case-folder files
+MAX_CHUNKS_PER_FILE = 250  # unused for case folders (not indexed); kept for ingest helpers
 KB_MAX_CHUNKS_PER_FILE = 6000  # big reference books (statutes, court rules)
 
-# Retrieval
-RAG_K_LIBRARY = 10  # passages from the case folders when the library is too big to send whole
+# Retrieval (knowledge base only — case folders are not searched)
 RAG_K_KB = 4  # passages from the knowledge base
-LIBRARY_FULL_CHARS = 120_000  # at or under this, Lori gets every case-folder file in full
 KB_PASSAGE_CHARS = 4000  # trim very long knowledge-base passages
 
 # Uploads / court portal

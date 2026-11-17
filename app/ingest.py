@@ -1,13 +1,11 @@
-"""Files on disk -> OKF documents + chunks -> vector index.
+"""Knowledge-base files on disk -> OKF documents + chunks -> vector index.
 
-Two families of files:
+Case folders (Exhibits, Pleadings, Discovery, Financials, Correspondence) are
+storage only. They are listed in the UI and dragged into chat when needed.
+They are never indexed here. Chat attachments go through app.case_file instead.
 
-* Case folders (Exhibits, Pleadings, Discovery, Financials, Correspondence).
-  Uploading a file indexes it straight away. There is no Ingest button.
-* Knowledge base (NJ Court Rules, NJ Family Law Statutes, Firm SOPs).
-  Reference material Lori looks things up in.
-
-The case file a user attaches in chat never comes through here.
+Only the knowledge base (NJ Court Rules, NJ Family Law Statutes, Firm SOPs)
+is ingested into OKF + RAG.
 """
 
 from __future__ import annotations
@@ -143,13 +141,10 @@ def doc_meta(cid: str) -> dict:
 
 
 def sources() -> list[tuple[str, str, Path]]:
-    """Every file that should be in the index, as (kind, folder, path). Small things first."""
+    """Every knowledge-base file that should be in the index. Case folders are excluded."""
     found: list[tuple[str, str, Path]] = []
     for path in _files_in(KB_SOURCES[2]["dir"]):
         found.append(("firm", "firm", path))
-    for folder in LIBRARY_FOLDERS:
-        for path in _files_in(LIBRARY_DIR / folder):
-            found.append(("library", folder, path))
     for source in KB_SOURCES[:2]:
         for path in _files_in(source["dir"]):
             found.append((source["id"], source["id"], path))
@@ -264,6 +259,23 @@ def remove_library_file(folder: str, name: str) -> bool:
     return True
 
 
+def kb_source(source_id: str) -> dict | None:
+    return next((s for s in KB_SOURCES if s["id"] == source_id), None)
+
+
+def remove_kb_file(source_id: str, name: str) -> bool:
+    """Remove a knowledge-base file (court rules / statutes / firm SOPs)."""
+    source = kb_source(source_id)
+    if not source:
+        return False
+    path = source["dir"] / Path(name).name
+    if not path.is_file():
+        return False
+    path.unlink()
+    remove_doc(concept_id(source_id, source_id, path.name))
+    return True
+
+
 # --- keep the index in step with the folders --------------------------------
 
 
@@ -333,25 +345,24 @@ def start_background_sync() -> None:
 
 
 def library_stats() -> dict:
+    """Inventory of files stored in the case folders. Not indexed."""
     folders = []
     total_files = 0
     total_bytes = 0
     for folder in LIBRARY_FOLDERS:
         files = []
         for path in _files_in(LIBRARY_DIR / folder):
-            cid = concept_id("library", folder, path.name)
-            meta = doc_meta(cid)
             size = path.stat().st_size
+            pages = page_count(path)
             files.append(
                 {
                     "name": path.name,
                     "folder": folder,
-                    "cid": cid,
                     "bytes": size,
-                    "pages": meta.get("pages"),
-                    "chars": int(meta.get("chars") or 0),
-                    "chunks": int(meta.get("chunks") or 0),
-                    "indexed": "vectors" in meta,
+                    "pages": pages,
+                    "chars": size,  # placeholder; text is read only when attached to chat
+                    "chunks": 0,
+                    "indexed": False,
                 }
             )
             total_bytes += size
@@ -413,12 +424,21 @@ def kb_stats(enabled: dict[str, bool]) -> list[dict]:
     for source in KB_SOURCES:
         files = _files_in(source["dir"])
         chunks = vectors_done = waiting = 0
+        file_rows = []
         for path in files:
             meta = doc_meta(concept_id(source["id"], source["id"], path.name))
             chunks += int(meta.get("chunks") or 0)
             vectors_done += int(meta.get("vectors") or 0)
             if "vectors" not in meta or meta.get("signature") != _signature(path):
                 waiting += 1
+            file_rows.append(
+                {
+                    "name": path.name,
+                    "bytes": path.stat().st_size,
+                    "chunks": int(meta.get("chunks") or 0),
+                    "indexed": "vectors" in meta,
+                }
+            )
         indexing = STATUS["running"] and STATUS["kind"] == source["id"]
         percent = int(100 * STATUS["done"] / STATUS["total"]) if indexing and STATUS["total"] else 0
         out.append(
@@ -426,6 +446,7 @@ def kb_stats(enabled: dict[str, bool]) -> list[dict]:
                 "id": source["id"],
                 "label": source["label"],
                 "files": len(files),
+                "file_rows": file_rows,
                 "chunks": chunks,
                 "vectors": vectors_done,
                 "enabled": bool(enabled.get(source["id"], True)),

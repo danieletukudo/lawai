@@ -27,7 +27,7 @@ from app.bot import reply
 from app.case_file import prepare_case_context
 from app.drafts import draft_file, file_name, get_draft, save_draft
 from app.graph import reset_engine
-from app.ingest import ALLOWED, ingest_file, remove_library_file, start_background_sync, sync_all
+from app.ingest import ALLOWED, ingest_file, kb_source, remove_kb_file, remove_library_file, start_background_sync, sync_all
 from app.okf import parse_okf
 from app.rag import kb_enabled
 from app.settings import (
@@ -158,28 +158,24 @@ def reset_thread():
     return workspace()
 
 
-# --- case folders (upload = index, no Ingest button) ---------------------------
+# --- case folders (storage only; drag into chat to send to Lori) --------------
 
 
 @app.post("/library/upload")
 async def upload_library_files(folder: str = Form("exhibits"), files: list[UploadFile] = File(...)):
-    """Save one batch into a case folder and index it into OKF + RAG straight away."""
+    """Save one batch into a case folder. Not indexed — drag into chat to send to Lori."""
     key = _folder_key(folder)
     names = [_allowed_name(item.filename) for item in files]
     payloads = [await item.read() for item in files]
     if sum(len(p) for p in payloads) > UPLOAD_BATCH_MB * 1024 * 1024:
         raise HTTPException(status_code=413, detail=f"A batch can be at most {UPLOAD_BATCH_MB} MB.")
 
-    def store_and_index() -> list[str]:
-        warnings: list[str] = []
+    def store() -> None:
         for name, data in zip(names, payloads):
-            dest = LIBRARY_DIR / key / name
-            dest.write_bytes(data)
-            warnings.extend(ingest_file("library", key, dest)["warnings"])
-        return warnings
+            (LIBRARY_DIR / key / name).write_bytes(data)
 
-    warnings = await run_in_threadpool(store_and_index)
-    return {**workspace(), "uploaded": names, "upload_warnings": warnings}
+    await run_in_threadpool(store)
+    return {**workspace(), "uploaded": names, "upload_warnings": []}
 
 
 @app.get("/library/file")
@@ -200,13 +196,72 @@ def delete_library_file(folder: str, name: str):
 # --- knowledge base -------------------------------------------------------------
 
 
+def _kb_key(source: str) -> str:
+    key = (source or "").strip()
+    if key not in {s["id"] for s in KB_SOURCES}:
+        raise HTTPException(status_code=400, detail=f"source must be one of: {', '.join(s['id'] for s in KB_SOURCES)}")
+    return key
+
+
 @app.post("/kb/toggle")
 def toggle_kb(source: str = Form(...), enabled: bool = Form(...)):
-    if source not in {s["id"] for s in KB_SOURCES}:
-        raise HTTPException(status_code=400, detail="Unknown knowledge source.")
+    key = _kb_key(source)
+    # Firm SOPs follow the books — not toggled by hand.
+    if key == "firm":
+        return workspace()
     state = kb_enabled()
-    state[source] = enabled
+    state[key] = enabled
     set_kv("kb_enabled", json.dumps(state))
+    return workspace()
+
+
+@app.post("/kb/upload")
+async def upload_kb_files(source: str = Form(...), files: list[UploadFile] = File(...)):
+    """Upload into Court Rules or Family Law Statutes. Firm SOPs are built-in — no upload."""
+    key = _kb_key(source)
+    if key == "firm":
+        raise HTTPException(
+            status_code=400,
+            detail="Firm SOPs are built in. Upload into Court Rules or Family Law Statutes instead.",
+        )
+    src = kb_source(key)
+    assert src is not None
+    names = [_allowed_name(item.filename) for item in files]
+    payloads = [await item.read() for item in files]
+    if sum(len(p) for p in payloads) > UPLOAD_BATCH_MB * 1024 * 1024:
+        raise HTTPException(status_code=413, detail=f"A batch can be at most {UPLOAD_BATCH_MB} MB.")
+
+    def store_and_index() -> list[str]:
+        warnings: list[str] = []
+        dest_dir = src["dir"]
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for name, data in zip(names, payloads):
+            dest = dest_dir / name
+            dest.write_bytes(data)
+            warnings.extend(ingest_file(key, key, dest)["warnings"])
+        return warnings
+
+    warnings = await run_in_threadpool(store_and_index)
+    return {**workspace(), "uploaded": names, "upload_warnings": warnings, "source": key}
+
+
+@app.get("/kb/file")
+def open_kb_file(source: str, name: str):
+    src = kb_source(_kb_key(source))
+    assert src is not None
+    path = src["dir"] / Path(name).name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="No such file.")
+    return FileResponse(path, filename=path.name, content_disposition_type="inline")
+
+
+@app.delete("/kb/file")
+def delete_kb_file(source: str, name: str):
+    key = _kb_key(source)
+    if key == "firm":
+        raise HTTPException(status_code=400, detail="Firm SOPs are built in and cannot be deleted here.")
+    if not remove_kb_file(key, name):
+        raise HTTPException(status_code=404, detail="No such file.")
     return workspace()
 
 

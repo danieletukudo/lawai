@@ -34,42 +34,8 @@ def _plural(count: int, word: str) -> str:
 
 
 def turn_cards(activity: dict, case: dict | None) -> list[dict]:
-    """The 'Read all exhibits, 96 of 96' cards: what Lori actually received."""
+    """Cards for what Lori actually received this turn (attach + knowledge base)."""
     cards = []
-    total, used = activity["files_total"], activity["files_used"]
-    if total:
-        folders = activity["folders"]
-        if activity["mode"] == "full":
-            if used == total and len(folders) == 1 and folders[0]["total"] == total:
-                title = f"Read all {folders[0]['label'].lower()}"
-            elif used == total:
-                title = "Read all case files"
-            else:
-                title = "Read case files"
-        else:
-            title = "Searched case files"
-        sub = []
-        bates = activity["bates"]
-        read_exhibits = activity["mode"] == "full" and any(f["id"] == "exhibits" for f in folders)
-        if bates["pages"] and read_exhibits:
-            sub.append(f"{_plural(bates['pages'], 'exhibit page')}, Bates {bates['first']} to {bates['last']} assigned")
-        elif activity["pages"] and activity["mode"] == "full":
-            sub.append(_plural(activity["pages"], "page"))
-        if activity["mode"] == "search":
-            sub.append(
-                f"{_plural(activity['passages'], 'passage')} from {_plural(used, 'file')}, "
-                f"all {total} listed by name"
-            )
-        if activity["unreadable"]:
-            sub.append(f"{_plural(len(activity['unreadable']), 'file')} with no readable text")
-        cards.append(
-            {
-                "title": title,
-                "count": f"{used} of {total}",
-                "pct": round(100 * used / total),
-                "sub": ". ".join(sub),
-            }
-        )
     if case:
         whole = case["used_chunks"] == case["total_chunks"]
         cards.append(
@@ -82,7 +48,7 @@ def turn_cards(activity: dict, case: dict | None) -> list[dict]:
                     if whole
                     else f"{case['name']}, the parts most relevant to your request."
                 )
-                + " Not added to the case folders.",
+                + " Sent for this turn only.",
             }
         )
     return cards
@@ -90,7 +56,7 @@ def turn_cards(activity: dict, case: dict | None) -> list[dict]:
 
 def turn_chips(activity: dict, case: dict | None) -> list[str]:
     """The 'Used' chips under a reply."""
-    chips = [f"{f['label']}, {_plural(f['used'], 'file')}" for f in activity["folders"]]
+    chips = []
     if case:
         chips.append(f"Case file: {case['name']}")
     for source in activity["kb"]:
@@ -218,42 +184,80 @@ def workspace() -> dict:
                 hint.append(_plural(item["pages"], "page"))
             if row and row["bates_start"]:
                 hint.append(f"Bates {row['bates_start']} to {row['bates_end']}")
-            if not item["chars"]:
-                hint.append("no readable text")
             files.append(
                 {
                     "name": item["name"],
                     "size": _size(item["bytes"]),
                     "hint": ", ".join(hint),
-                    "readable": bool(item["chars"]),
+                    "readable": True,
                 }
             )
         folders.append({"id": folder["id"], "label": folder["label"], "count": folder["count"], "files": files})
 
+    raw = kb_stats(kb_enabled())
+    by_id = {s["id"]: s for s in raw}
+
+    def book_ready(source: dict) -> bool:
+        return source["files"] > 0 and not source["waiting"] and not source["indexing"]
+
+    books_ready = book_ready(by_id.get("court_rules") or {"files": 0, "waiting": 1, "indexing": False}) and book_ready(
+        by_id.get("statutes") or {"files": 0, "waiting": 1, "indexing": False}
+    )
+
     sources = []
-    for source in kb_stats(kb_enabled()):
+    for source in raw:
         has_files = source["files"] > 0
-        if source["indexing"]:
-            status, tone = f"Indexing {source['percent']}%", "busy"
-        elif source["waiting"]:
-            status, tone = "Queued", "busy"
-        elif not has_files:
-            status, tone = "Empty", "muted"
-        elif source["enabled"]:
-            status, tone = "On", "ok"
+        is_firm = source["id"] == "firm"
+        # Firm SOPs are built-in. No upload. Marked On only when Court Rules + Statutes are fully indexed.
+        if is_firm:
+            if books_ready:
+                status, tone, checked, disabled = "On", "ok", True, False
+                hint = "On when NJ Court Rules and NJ Family Law Statutes are fully indexed."
+            else:
+                status, tone, checked, disabled = "Waiting", "muted", False, True
+                hint = "Turns on automatically when Court Rules and Family Law Statutes finish indexing."
+            file_list = []
+            uploadable = False
         else:
-            status, tone = "Off", "muted"
+            if source["indexing"]:
+                status, tone = f"Indexing {source['percent']}%", "busy"
+            elif source["waiting"]:
+                status, tone = "Queued", "busy"
+            elif not has_files:
+                status, tone = "Empty", "muted"
+            elif source["enabled"]:
+                status, tone = "On", "ok"
+            else:
+                status, tone = "Off", "muted"
+            checked = source["enabled"] and has_files and not source["waiting"] and not source["indexing"]
+            disabled = not has_files
+            hint = (
+                f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
+                if has_files
+                else "Upload the markdown for this source."
+            )
+            file_list = [
+                {
+                    "name": row["name"],
+                    "size": _size(row["bytes"]),
+                    "readable": True,
+                    "indexed": bool(row.get("indexed")),
+                }
+                for row in (source.get("file_rows") or [])
+            ]
+            uploadable = True
         sources.append(
             {
                 "id": source["id"],
                 "label": source["label"],
-                "checked": source["enabled"] and has_files,
-                "disabled": not has_files,
+                "checked": checked,
+                "disabled": disabled,
                 "status": status,
                 "tone": tone,
-                "hint": f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
-                if has_files
-                else "Nothing loaded for this source yet.",
+                "hint": hint,
+                "files": file_list,
+                "uploadable": uploadable,
+                "builtin": is_firm,
             }
         )
     active = sum(1 for s in sources if s["checked"])
@@ -281,6 +285,7 @@ def workspace() -> dict:
         },
         "leap": {"text": "LEAP not connected", "ok": False},
         "files_label": _plural(stats["total_files"], "file"),
+        "files_heading": "Case file",
         "folders": folders,
         "upload": {"batch_mb": UPLOAD_BATCH_MB},
         "kb": {"label": f"{active} of {len(sources)} active", "composer": f"{_plural(active, 'source')} on", "sources": sources},

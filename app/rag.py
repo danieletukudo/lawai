@@ -1,8 +1,7 @@
 """RAG: decide what Lori gets to read this turn, and record exactly what that was.
 
-* Case folders: if everything fits, Lori gets every file in full. If the folders
-  are too big, she gets the passages that best match the request, plus a list of
-  every file so nothing is invisible to her.
+* Case folders: storage only. The manifest lists what is on disk. File text reaches
+  Lori only when the user attaches or drags a file into chat (handled as case_file).
 * Knowledge base: the best matching passages from the sources switched on.
 
 The record of what was used ("activity") is what the chat shows the user.
@@ -20,11 +19,8 @@ from .settings import (
     CHUNK_DIR,
     KB_PASSAGE_CHARS,
     KB_SOURCES,
-    LIBRARY_FULL_CHARS,
-    OKF_DIR,
     PROMPT_PATH,
     RAG_K_KB,
-    RAG_K_LIBRARY,
     load_matter,
 )
 from .store import get_kv
@@ -73,16 +69,15 @@ def _search(question: str, k: int, kinds: list[str]) -> list[dict]:
             return hits
     except Exception:
         pass
-    prefixes = ["lib-"] if kinds == ["library"] else [KB_PREFIX[kind] for kind in kinds]
+    prefixes = [KB_PREFIX[kind] for kind in kinds if kind in KB_PREFIX]
     return _keyword_search(question, prefixes, k)
 
 
-def manifest_text(stats: dict, bates: dict, volumes: dict, with_openings: bool) -> str:
-    """Every file in the case folders: name, size, pages, Bates range."""
+def manifest_text(stats: dict, bates: dict, volumes: dict) -> str:
+    """Every file in the case folders: name, size, pages, Bates range. No file text."""
     if not stats["total_files"]:
         return "The case folders are empty. Nothing has been uploaded yet."
     by_name = {row["name"]: row for row in bates["rows"]}
-    opening_len = max(80, min(260, 30_000 // max(1, stats["total_files"])))
     lines = []
     for folder in stats["folders"]:
         if not folder["count"]:
@@ -97,14 +92,7 @@ def manifest_text(stats: dict, bates: dict, volumes: dict, with_openings: bool) 
             if row and row["bates_start"]:
                 parts.append(f"Bates {row['bates_start']} to {row['bates_end']}")
                 parts.append(f"starts at page {row['start_page']}")
-            if not item["chars"]:
-                parts.append("NO READABLE TEXT")
-            line = " | ".join(parts)
-            if with_openings and item["chars"]:
-                _, body = parse_okf(OKF_DIR / f"{item['cid']}.md")
-                opening = " ".join(body.replace("## Page 1", "").split())[:opening_len]
-                line += f"\n     opens: {opening}"
-            lines.append(line)
+            lines.append(" | ".join(parts))
     if bates["pages"]:
         lines.append(
             f"Exhibit Bates run: {bates['first']} to {bates['last']} ({bates['pages']} pages). "
@@ -127,55 +115,30 @@ def manifest_text(stats: dict, bates: dict, volumes: dict, with_openings: bool) 
 
 
 def build_context(question: str) -> dict:
-    """Everything the prompt needs, plus the record of what was used."""
+    """Knowledge-base passages for this turn, plus a case-folder inventory (no auto text)."""
     stats = library_stats()
     files = [item for folder in stats["folders"] for item in folder["files"]]
-    readable = [item for item in files if item["chars"]]
     exhibits = next(f["files"] for f in stats["folders"] if f["id"] == "exhibits")
     bates = bates_ranges(exhibits)
     volumes = court_volumes(exhibits)
-    labels = {folder["id"]: folder["label"] for folder in stats["folders"]}
 
-    used: dict[str, set[str]] = {}  # folder -> file names Lori actually received text from
-    blocks: list[str] = []
-    passages = 0
-    total_chars = sum(item["chars"] for item in readable)
-
-    if not files:
-        mode = "empty"
-    elif total_chars <= LIBRARY_FULL_CHARS:
-        mode = "full"
-        for item in readable:
-            _, body = parse_okf(OKF_DIR / f"{item['cid']}.md")
-            blocks.append(f"[{labels[item['folder']]} / {item['name']} | full text]\n{body}")
-            used.setdefault(item["folder"], set()).add(item["name"])
-    else:
-        mode = "search"
-        lowered = question.lower()
-        seen: set[str] = set()
-        # A file the user names is always included from the top.
-        for item in readable:
-            stem = item["name"].rsplit(".", 1)[0].lower()
-            if len(stem) >= 4 and (item["name"].lower() in lowered or stem in lowered):
-                _, body = parse_okf(OKF_DIR / f"{item['cid']}.md")
-                blocks.append(
-                    f"[{labels[item['folder']]} / {item['name']} | named by the user]\n{body[:30_000]}"
-                )
-                used.setdefault(item["folder"], set()).add(item["name"])
-                seen.add(item["name"])
-        for hit in _search(question, RAG_K_LIBRARY, ["library"]):
-            name, folder = hit.get("source_file", ""), hit.get("folder", "")
-            if name in seen:
-                continue
-            section = f" | {hit['section']}" if hit.get("section") else ""
-            blocks.append(f"[{labels.get(folder, folder)} / {name}{section} | passage]\n{hit.get('body', '')}")
-            used.setdefault(folder, set()).add(name)
-            passages += 1
-
-    # Knowledge base: only the sources that are switched on and have content.
+    # Knowledge base: Court Rules + Statutes when switched on; Firm SOPs when both books are ready.
     enabled = kb_enabled()
     kb = kb_stats(enabled)
-    kinds = [s["id"] for s in kb if s["enabled"] and s["chunks"]]
+    books_ready = all(
+        s["files"] > 0 and not s["waiting"] and not s["indexing"]
+        for s in kb
+        if s["id"] in {"court_rules", "statutes"}
+    )
+    kinds = []
+    for s in kb:
+        if not s["chunks"]:
+            continue
+        if s["id"] == "firm":
+            if books_ready:
+                kinds.append("firm")
+        elif s["enabled"]:
+            kinds.append(s["id"])
     kb_hits = _search(question, RAG_K_KB, kinds)
     kb_blocks, kb_used = [], {}
     for hit in kb_hits:
@@ -189,26 +152,23 @@ def build_context(question: str) -> dict:
         if title not in kb_used[kind]:
             kb_used[kind].append(title)
 
-    files_used = sum(len(names) for names in used.values())
     activity = {
-        "mode": mode,
+        "mode": "empty" if not files else "inventory",
         "files_total": len(files),
-        "files_used": files_used,
-        "passages": passages,
-        "unreadable": [item["name"] for item in files if not item["chars"]],
-        "folders": [
-            {"id": fid, "label": labels[fid], "used": len(names), "total": next(
-                f["count"] for f in stats["folders"] if f["id"] == fid
-            )}
-            for fid, names in used.items()
-        ],
+        "files_used": 0,
+        "passages": 0,
+        "unreadable": [],
+        "folders": [],
         "kb": [{"id": kind, "label": KB_LABELS.get(kind, kind), "titles": titles} for kind, titles in kb_used.items()],
         "bates": {"first": bates["first"], "last": bates["last"], "pages": bates["pages"]},
         "pages": sum(item["pages"] or 0 for item in files),
     }
     return {
-        "manifest": manifest_text(stats, bates, volumes, with_openings=(mode == "search")),
-        "library": "\n\n".join(blocks),
+        "manifest": manifest_text(stats, bates, volumes),
+        "library": (
+            "No case-folder text was auto-loaded. "
+            "File text arrives only when the user attaches or drags a file into chat this turn."
+        ),
         "knowledge": "\n\n".join(kb_blocks),
         "activity": activity,
     }

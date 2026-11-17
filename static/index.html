@@ -108,10 +108,17 @@
   .upload .bar { margin: 9px 0 8px; }
   .upload .note { font-size: 11px; color: var(--muted); }
 
-  .kb-row { display: flex; align-items: center; gap: 10px; height: 34px; cursor: pointer; }
+  .kb-block { margin-bottom: 8px; }
+  .kb-row { display: flex; align-items: center; gap: 8px; min-height: 34px; cursor: pointer; }
   .kb-row.disabled { cursor: default; }
-  .kb-row .name { font-weight: 700; font-size: 12.5px; flex: 1; }
+  .kb-row .meta { flex: 1; min-width: 0; }
+  .kb-row .name { font-weight: 700; font-size: 12.5px; display: block; }
   .kb-row.disabled .name { color: var(--muted); }
+  .kb-up { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: #6c7180; flex: none; }
+  .kb-up:hover { background: #eae7e0; color: var(--ink); }
+  .kb-files { padding: 0 0 4px 26px; }
+  .kb-files .file-row { padding-left: 0; }
+  .kb-empty { font-size: 11px; color: var(--faint); padding: 2px 0 6px; }
   .check { width: 17px; height: 17px; border-radius: 4px; border: 1.5px solid #b9b6ae; background: #fff; display: grid; place-items: center; color: #fff; }
   .check.on { background: var(--navy); border-color: var(--navy); }
   .check svg { visibility: hidden; }
@@ -388,13 +395,13 @@
 </header>
 
 <main>
-  <!-- LEFT: the case and its folders. Files dropped here are indexed (OKF + RAG) on upload. -->
+  <!-- LEFT: the case and its folders. Storage only — drag a file into chat to send it to Lori. -->
   <aside class="side">
     <div class="side-top">
       <div class="label">Select Case</div>
       <button class="case-box" id="caseBox"><span data-i="search"></span><span id="caseName"></span></button>
       <div class="case-line" id="caseLine"></div>
-      <div class="row-head files-head"><span class="label">Files</span><span class="small" id="filesLabel"></span></div>
+      <div class="row-head files-head"><span class="label" id="filesHeading">Case file</span><span class="small" id="filesLabel"></span></div>
       <div id="tree"></div>
     </div>
     <div class="side-block">
@@ -403,7 +410,8 @@
     </div>
     <div class="side-block">
       <div class="row-head" style="margin-bottom:5px"><span class="label">Knowledge base</span><span class="small" id="kbLabel"></span></div>
-      <div id="kb"></div>
+     <div id="kb"></div>
+      <input type="file" id="kbPicker" multiple accept=".pdf,.docx,.txt,.md" hidden>
     </div>
   </aside>
 
@@ -427,14 +435,14 @@
         <div id="attached"></div>
         <textarea id="input" rows="2" placeholder="Give Lori detailed drafting instructions. Shift + Enter for a new line."></textarea>
         <div class="composer-row">
-          <button class="icon-btn" id="clipBtn" title="Attach the case file for this message (sent to Lori for this turn, not stored in the folders)"><span data-i="clip"></span></button>
+          <button class="icon-btn" id="clipBtn" title="Attach a file for this message (or drag one from the case folders)"><span data-i="clip"></span></button>
           <button class="icon-btn" id="atBtn" title="Switch case"><span data-i="at"></span></button>
           <span class="sources-on" id="sourcesOn"></span>
           <button class="send" id="sendBtn" title="Send"><span data-i="arrowUp"></span></button>
         </div>
         <input type="file" id="casePicker" accept=".pdf,.docx,.txt,.md" hidden>
       </div>
-      <div class="hint">Drag files from the case file to reference them. Type @ to switch case.</div>
+      <div class="hint">Drag files from the case folders into chat to send them to Lori. Type @ to switch case.</div>
     </div>
   </section>
 
@@ -500,7 +508,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let S = null;                       // the workspace, exactly as the server reports it
 const ui = {
   open: new Set(['exhibits']),      // expanded folders
+  openKb: new Set(['court_rules', 'statutes', 'firm']),
   selected: 'exhibits',             // where the next upload goes
+  kbTarget: null,                   // knowledge-base slot for the next upload
   showAll: new Set(),               // folders showing every file
   pending: null,                    // message waiting on Lori
   failed: null,                     // last turn's error
@@ -570,6 +580,7 @@ function renderSide() {
   $('casePillName').textContent = S.matter.name;
   $('caseLine').textContent = S.matter.line;
   $('filesLabel').textContent = S.files_label;
+  if ($('filesHeading')) $('filesHeading').textContent = S.files_heading || 'Case file';
 
   $('tree').innerHTML = S.folders.map((f) => {
     const open = ui.open.has(f.id);
@@ -597,11 +608,25 @@ function renderSide() {
 
   $('kbLabel').textContent = S.kb.label;
   $('sourcesOn').textContent = S.kb.composer;
-  $('kb').innerHTML = S.kb.sources.map((k) => `
-    <div class="kb-row${k.disabled ? ' disabled' : ''}" data-kb="${k.id}" title="${esc(k.hint)}">
-      <span class="check${k.checked ? ' on' : ''}">${icon('check', 11, 2.2)}</span>
-      <span class="name">${esc(k.label)}</span><span class="status ${k.tone}">${esc(k.status)}</span>
-    </div>`).join('');
+  $('kb').innerHTML = S.kb.sources.map((k) => {
+    const open = ui.openKb.has(k.id);
+    const files = k.files || [];
+    const rows = files.map((x) => `
+      <div class="file-row" data-kb-file="${k.id}" data-name="${esc(x.name)}" title="${esc(x.name)}">
+        ${icon('file', 14, 1.3)}<span class="name">${esc(x.name)}</span>
+        <span class="size">${esc(x.size)}${x.indexed ? '' : ' · queued'}</span>
+        ${SAMPLE ? '' : `<button class="del" title="Remove from the knowledge base">${icon('x', 11, 1.8)}</button>`}
+      </div>`).join('');
+    return `<div class="kb-block" data-kb-block="${k.id}">
+      <div class="kb-row" data-kb="${k.id}" title="${esc(k.hint)}">
+        <span class="check${k.checked ? ' on' : ''}">${icon('check', 11, 2.2)}</span>
+        <span class="meta"><span class="name">${esc(k.label)}</span></span>
+        <span class="status ${k.tone}">${esc(k.status)}</span>
+        ${(!SAMPLE && k.uploadable !== false) ? `<button class="kb-up" data-kb-up="${k.id}" title="Upload into ${esc(k.label)}">${icon('upload', 14)}</button>` : ''}
+      </div>
+      ${open && k.uploadable !== false ? `<div class="kb-files">${rows || '<div class="kb-empty">No file yet — upload the markdown here.</div>'}</div>` : ''}
+  </div>`;
+  }).join('');
 }
 
 function renderUpload() {
@@ -651,11 +676,11 @@ function userBlock(m) {
 function renderThread(toBottom) {
   const items = S.thread.map((m) => (m.role === 'user' ? userBlock(m) : loriBlock(m)));
   if (!S.thread.length && !ui.pending) {
-    items.push(loriBlock({ text: 'I am Lori. Add the case documents to the folders on the left, attach the case file with the paperclip, and tell me what to prepare. Drafts open on the right as a PDF for attorney review.' }));
+    items.push(loriBlock({ text: 'I am Lori. Store case documents in the folders on the left, drag one into chat (or use the paperclip) when you want me to read it, and tell me what to prepare. Drafts open on the right as a PDF for attorney review.' }));
   }
   if (ui.pending) {
     items.push(userBlock({ text: ui.pending.text, name: S.user.name, time: ui.pending.time, case_file: ui.pending.file ? { name: ui.pending.file } : null }));
-    items.push(loriBlock({ cards: [{ title: 'Reading the case files', count: '', busy: true, sub: 'Checking the folders, the knowledge base and anything you attached.' }] }));
+    items.push(loriBlock({ cards: [{ title: 'Working', count: '', busy: true, sub: 'Checking the knowledge base and anything you attached.' }] }));
   }
   if (ui.failed) items.push(loriBlock({ error: ui.failed }));
   const el = $('thread');
@@ -729,16 +754,18 @@ async function send() {
 }
 function autosize() { const t = $('input'); t.style.height = 'auto'; t.style.height = Math.min(170, t.scrollHeight) + 'px'; }
 
-/* ---------- uploading into a folder (indexes on arrival) ---------- */
+/* ---------- uploading into a folder (storage) or knowledge base (indexes) ---------- */
 const OK_TYPES = ['.pdf', '.docx', '.txt', '.md'];
 const mb = (bytes) => (bytes / 1048576).toFixed(1);
-function sendBatch(folder, files, onProgress, onSent) {
+function sendBatch(target, files, onProgress, onSent) {
   return new Promise((resolve, reject) => {
     const body = new FormData();
-    body.append('folder', folder);
+    const toKb = target.kind === 'kb';
+    if (toKb) body.append('source', target.id);
+    else body.append('folder', target.id);
     for (const f of files) body.append('files', f, f.name);
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/library/upload');
+    xhr.open('POST', toKb ? '/kb/upload' : '/library/upload');
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
     xhr.upload.onload = onSent;
     xhr.onload = () => {
@@ -751,10 +778,13 @@ function sendBatch(folder, files, onProgress, onSent) {
     xhr.send(body);
   });
 }
-async function uploadFiles(fileList, folderId) {
+async function uploadFiles(fileList, folderId, kbId) {
   if (blocked()) return;
   if (ui.upload) return toast('An upload is already running.');
-  const folder = S.folders.find((f) => f.id === folderId) || S.folders[0];
+  const toKb = !!kbId;
+  const folder = !toKb ? (S.folders.find((f) => f.id === folderId) || S.folders[0]) : null;
+  const kb = toKb ? (S.kb.sources.find((x) => x.id === kbId) || { id: kbId, label: kbId }) : null;
+  const target = toKb ? { kind: 'kb', id: kb.id, label: kb.label } : { kind: 'library', id: folder.id, label: folder.label };
   const limit = S.upload.batch_mb * 1048576;
   const good = [], skipped = [];
   for (const f of fileList) {
@@ -770,20 +800,21 @@ async function uploadFiles(fileList, folderId) {
     else batches.push({ files: [f], size: f.size });
   }
   const notes = [];
-  ui.open.add(folder.id); ui.selected = folder.id;
+  if (!toKb) { ui.open.add(folder.id); ui.selected = folder.id; }
+  else ui.openKb.add(kb.id);
   try {
     for (let i = 0; i < batches.length; i++) {
       const b = batches[i], label = `batch ${i + 1} of ${batches.length}`;
       ui.upload = { title: `Uploading ${label}`, right: `0.0 / ${mb(b.size)} MB`, pct: 0 };
       renderUpload();
-      const next = await sendBatch(folder.id, b.files,
+      const next = await sendBatch(target, b.files,
         (loaded, total) => { ui.upload = { title: `Uploading ${label}`, right: `${mb(Math.min(loaded, b.size))} / ${mb(b.size)} MB`, pct: Math.round(100 * loaded / total) }; renderUpload(); },
-        () => { ui.upload = { title: `Indexing ${label}`, right: `${mb(b.size)} MB`, pct: 100, busy: true }; renderUpload(); });
+        () => { ui.upload = { title: toKb ? `Indexing ${label}` : `Saving ${label}`, right: `${mb(b.size)} MB`, pct: 100, busy: true }; renderUpload(); });
       notes.push(...(next.upload_warnings || []));
       S = next; renderSide();
     }
     if (good.length) {
-      ui.upload = { title: `Added ${good.length} ${good.length === 1 ? 'file' : 'files'} to ${folder.label}`, right: 'Indexed', pct: 100 };
+      ui.upload = { title: `Added ${good.length} ${good.length === 1 ? 'file' : 'files'} to ${target.label}`, right: toKb ? 'Indexed' : 'Saved', pct: 100 };
       renderUpload();
       setTimeout(() => { ui.upload = null; renderUpload(); }, 4000);
     } else ui.upload = null;
@@ -819,7 +850,10 @@ $('tree').addEventListener('click', async (e) => {
 });
 $('tree').addEventListener('dragstart', (e) => {
   const row = e.target.closest('.file-row');
-  if (row) e.dataTransfer.setData('text/plain', `"${row.dataset.name}" `);
+  if (!row) return;
+  e.dataTransfer.setData('application/x-lori-case', JSON.stringify({ folder: row.dataset.folder, name: row.dataset.name }));
+  e.dataTransfer.setData('text/plain', row.dataset.name);
+  e.dataTransfer.effectAllowed = 'copy';
 });
 $('tree').addEventListener('dragover', (e) => {
   const folder = e.target.closest('.folder');
@@ -840,13 +874,52 @@ $('uploadBlock').addEventListener('click', () => { if (!blocked() && !ui.upload)
 $('filePicker').addEventListener('change', (e) => { const files = [...e.target.files]; e.target.value = ''; if (files.length) uploadFiles(files, ui.selected); });
 
 $('kb').addEventListener('click', async (e) => {
+  const up = e.target.closest('[data-kb-up]');
+  const del = e.target.closest('.del');
+  const fileRow = e.target.closest('[data-kb-file]');
   const row = e.target.closest('[data-kb]');
+  if (up) {
+    e.stopPropagation();
+    if (blocked() || ui.upload) return;
+    ui.kbTarget = up.dataset.kbUp;
+    $('kbPicker').click();
+    return;
+  }
+  if (del && fileRow) {
+    e.stopPropagation();
+    if (blocked()) return;
+    if (!confirm(`Remove "${fileRow.dataset.name}" from the knowledge base?`)) return;
+    try {
+      S = await call(`/kb/file?source=${fileRow.dataset.kbFile}&name=${encodeURIComponent(fileRow.dataset.name)}`, { method: 'DELETE' });
+      renderSide();
+    } catch (err) { toast(err.message); }
+    return;
+  }
+  if (fileRow) {
+    e.stopPropagation();
+    if (blocked()) return;
+    window.open(`/kb/file?source=${fileRow.dataset.kbFile}&name=${encodeURIComponent(fileRow.dataset.name)}`, '_blank');
+    return;
+  }
   if (!row || blocked()) return;
   const k = S.kb.sources.find((s) => s.id === row.dataset.kb);
-  if (k.disabled) return toast(`${k.label}: nothing is loaded for this source yet.`);
-  const body = new FormData();
-  body.append('source', k.id); body.append('enabled', String(!k.checked));
-  try { S = await call('/kb/toggle', { method: 'POST', body }); renderSide(); } catch (err) { toast(err.message); }
+  if (!k) return;
+  // Clicking the label toggles expand; clicking the checkbox area toggles on/off when files exist.
+  if (e.target.closest('.check')) {
+    if (k.builtin) return toast('Firm SOPs turn on automatically when Court Rules and Family Law Statutes finish indexing.');
+    if (!k.files || !k.files.length) return toast(`${k.label}: upload a file into this slot first.`);
+    const body = new FormData();
+    body.append('source', k.id); body.append('enabled', String(!k.checked));
+    try { S = await call('/kb/toggle', { method: 'POST', body }); renderSide(); } catch (err) { toast(err.message); }
+    return;
+  }
+  if (ui.openKb.has(k.id)) ui.openKb.delete(k.id); else ui.openKb.add(k.id);
+  renderSide();
+});
+$('kbPicker').addEventListener('change', (e) => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length && ui.kbTarget) uploadFiles(files, null, ui.kbTarget);
 });
 
 $('thread').addEventListener('click', async (e) => {
@@ -876,13 +949,32 @@ $('clipBtn').addEventListener('click', () => { if (!blocked()) $('casePicker').c
 $('casePicker').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) setAttach(f); });
 $('attached').addEventListener('click', (e) => { if (e.target.closest('#dropAttach')) setAttach(null); });
 const composer = $('composer');
-composer.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); composer.classList.add('drop'); } });
-composer.addEventListener('dragleave', (e) => { if (!composer.contains(e.relatedTarget)) composer.classList.remove('drop'); });
-composer.addEventListener('drop', (e) => {
-  composer.classList.remove('drop');
-  if (!e.dataTransfer.files.length) return;          // dragged file names from the tree drop in as text
+function canAttachDrop(dt) {
+  const types = [...(dt.types || [])];
+  return types.includes('Files') || types.includes('application/x-lori-case');
+}
+composer.addEventListener('dragover', (e) => {
+  if (!canAttachDrop(e.dataTransfer)) return;
   e.preventDefault();
-  if (!blocked()) setAttach(e.dataTransfer.files[0]);
+  composer.classList.add('drop');
+});
+composer.addEventListener('dragleave', (e) => { if (!composer.contains(e.relatedTarget)) composer.classList.remove('drop'); });
+composer.addEventListener('drop', async (e) => {
+  composer.classList.remove('drop');
+  e.preventDefault();
+  if (blocked()) return;
+  const refRaw = e.dataTransfer.getData('application/x-lori-case');
+  if (refRaw) {
+    try {
+      const ref = JSON.parse(refRaw);
+      const res = await fetch(`/library/file?folder=${encodeURIComponent(ref.folder)}&name=${encodeURIComponent(ref.name)}`);
+      if (!res.ok) throw new Error('Could not load that file from the case folders.');
+      const blob = await res.blob();
+      setAttach(new File([blob], ref.name, { type: blob.type || 'application/octet-stream' }));
+    } catch (err) { toast(err.message || 'Could not attach that file.'); }
+    return;
+  }
+  if (e.dataTransfer.files.length) setAttach(e.dataTransfer.files[0]);
 });
 
 const oneCase = () => toast(SAMPLE ? SAMPLE_NOTE : 'One case is set up so far. Its details are in bot/matter.json.');
