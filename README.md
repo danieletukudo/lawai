@@ -2,7 +2,7 @@
 
 Three-panel workspace for **Tanya Freeman Law**. Lori reads the case folders, the knowledge base and the case file attached in chat, then writes a first draft that opens on the right as a real PDF for attorney review.
 
-Stack: FastAPI, LangGraph, Gemini (chat only), OKF files on disk, Qdrant (local) with FastEmbed (local embeddings), ReportLab (PDF).
+Stack: FastAPI, LangGraph, Gemini (chat only), OKF files on disk, Qdrant (Cloud Inference on Render; local FastEmbed for offline), ReportLab (PDF).
 
 ## Run it
 
@@ -55,6 +55,23 @@ python -m app.ingest             # index anything new or changed (stop the serve
 python -m app.ingest --reindex   # rebuild everything
 ```
 
+## Qdrant Cloud (Render)
+
+On Render, do **not** run the local embedding model — it blows the free-tier RAM.
+
+1. Create a cluster at [cloud.qdrant.io](https://cloud.qdrant.io).
+2. On the cluster, open the **Inference** tab and enable Cloud Inference.
+3. Set these env vars on Render (also in `.env` for local testing against cloud):
+
+```
+QDRANT_URL=https://YOUR-CLUSTER.cloud.qdrant.io
+QDRANT_API_KEY=...
+EMBEDDING_MODEL=sentence-transformers/all-minilm-l6-v2
+EMBEDDING_VECTOR_SIZE=384
+```
+
+Embeddings then run on Qdrant. With no `QDRANT_URL`, Lori falls back to local FastEmbed + `data/qdrant/`.
+
 ## Docker / Render
 
 ```bash
@@ -65,6 +82,7 @@ docker run --rm -p 8000:8000 --env-file .env lori-bot
 `render.yaml` is included. Set `GOOGLE_API_KEY` in the Render dashboard. Times New Roman is not installed on the Linux image; drop the four `.ttf` files into `fonts/` or the PDF falls back to the built-in Times face.
 
 Do not commit `.env`. Case files, reference books and `data/` are git-ignored.
+# lawai
 # lawai
 # lawai
 # lawai

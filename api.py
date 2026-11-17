@@ -34,6 +34,9 @@ from app.settings import (
     CASE_UPLOAD_DIR,
     CHUNK_DIR,
     EMBEDDING_MODEL,
+    EMBEDDING_VECTOR_SIZE,
+    QDRANT_URL,
+    USE_QDRANT_CLOUD,
     FIRM_DIR,
     FIRM_NAME,
     KB_SOURCES,
@@ -337,10 +340,13 @@ def list_knowledge():
         "documents": sorted(p.name for p in OKF_DIR.glob("*.md")),
         "chunk_dir": str(CHUNK_DIR),
         "chunks": sum(1 for _ in CHUNK_DIR.glob("*.md")),
-        "vector_store": "qdrant",
+        "vector_store": "qdrant-cloud" if USE_QDRANT_CLOUD else "qdrant-local",
+        "qdrant_url": QDRANT_URL or str(QDRANT_DIR),
         "embeddings_dir": str(QDRANT_DIR),
         "embedding_collection": QDRANT_COLLECTION,
         "embedding_model": EMBEDDING_MODEL,
+        "embedding_vector_size": EMBEDDING_VECTOR_SIZE,
+        "cloud_inference": USE_QDRANT_CLOUD,
     }
 
 

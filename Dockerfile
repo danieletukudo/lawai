@@ -27,12 +27,11 @@ COPY app ./app
 COPY static ./static
 COPY samples ./samples
 COPY knowledge ./knowledge
-# Writable dirs for the non-root user, then bake the embedding model into the image
-# so Render does not try to download it at boot (that was the Permission denied error).
+# Writable dirs for the non-root user. Embeddings should run on Qdrant Cloud Inference
+# (set QDRANT_URL + QDRANT_API_KEY) so Render does not load a local model into RAM.
 RUN mkdir -p knowledge/raw knowledge/firm knowledge/library knowledge/kb knowledge/okf/chunks \
         data/qdrant data/models data/drafts data/saved data/case_uploads \
     && chown -R appuser:appuser /app /home/appuser
 USER appuser
-RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='BAAI/bge-small-en-v1.5', cache_dir='/app/data/models')"
 EXPOSE 8000
 CMD ["sh", "-c", "exec uvicorn api:app --host 0.0.0.0 --port ${PORT}"]
