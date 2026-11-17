@@ -21,6 +21,7 @@ from qdrant_client.http.models import (
     FilterSelector,
     MatchAny,
     MatchValue,
+    PayloadSchemaType,
     PointStruct,
     VectorParams,
 )
@@ -75,23 +76,44 @@ def _has_collection() -> bool:
     return QDRANT_COLLECTION in {c.name for c in _client().get_collections().collections}
 
 
+def _ensure_payload_indexes() -> None:
+    """Qdrant Cloud requires a keyword index before filtering/deleting on a payload field."""
+    client = _client()
+    for field in ("parent", "kind", "folder"):
+        try:
+            client.create_payload_index(
+                collection_name=QDRANT_COLLECTION,
+                field_name=field,
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+        except Exception as exc:
+            # Already exists, or a race with another worker — both are fine.
+            if "already exists" not in str(exc).lower():
+                log.debug("Payload index %s: %s", field, exc)
+
+
 def _ensure_collection() -> None:
     client = _client()
     if _has_collection():
         info = client.get_collection(QDRANT_COLLECTION)
         current = info.config.params.vectors.size  # type: ignore[union-attr]
-        if current == EMBEDDING_VECTOR_SIZE:
-            return
-        log.warning(
-            "Recreating Qdrant collection (dim %s -> %s)",
-            current,
-            EMBEDDING_VECTOR_SIZE,
+        if current != EMBEDDING_VECTOR_SIZE:
+            log.warning(
+                "Recreating Qdrant collection (dim %s -> %s)",
+                current,
+                EMBEDDING_VECTOR_SIZE,
+            )
+            client.delete_collection(QDRANT_COLLECTION)
+            client.create_collection(
+                collection_name=QDRANT_COLLECTION,
+                vectors_config=VectorParams(size=EMBEDDING_VECTOR_SIZE, distance=Distance.COSINE),
+            )
+    else:
+        client.create_collection(
+            collection_name=QDRANT_COLLECTION,
+            vectors_config=VectorParams(size=EMBEDDING_VECTOR_SIZE, distance=Distance.COSINE),
         )
-        client.delete_collection(QDRANT_COLLECTION)
-    client.create_collection(
-        collection_name=QDRANT_COLLECTION,
-        vectors_config=VectorParams(size=EMBEDDING_VECTOR_SIZE, distance=Distance.COSINE),
-    )
+    _ensure_payload_indexes()
 
 
 def _doc_from_chunk(path: Path) -> dict | None:
@@ -129,6 +151,7 @@ def delete_parent(parent: str) -> None:
     with LOCK:
         if not _has_collection():
             return
+        _ensure_payload_indexes()
         _client().delete(
             collection_name=QDRANT_COLLECTION,
             points_selector=FilterSelector(
