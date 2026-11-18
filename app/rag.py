@@ -101,23 +101,10 @@ def build_context(question: str) -> dict:
     bates = bates_ranges(exhibits)
     volumes = court_volumes(exhibits)
 
-    # Knowledge base: Court Rules + Statutes when switched on; Firm SOPs when both books are ready.
+    # Knowledge base: Court Rules, Statutes, and Firm SOPs when switched on and indexed.
     enabled = kb_enabled()
     kb = kb_stats(enabled)
-    books_ready = all(
-        s["files"] > 0 and not s["waiting"] and not s["indexing"]
-        for s in kb
-        if s["id"] in {"court_rules", "statutes"}
-    )
-    kinds = []
-    for s in kb:
-        if not s["chunks"]:
-            continue
-        if s["id"] == "firm":
-            if books_ready:
-                kinds.append("firm")
-        elif s["enabled"]:
-            kinds.append(s["id"])
+    kinds = [s["id"] for s in kb if s["chunks"] and s["enabled"]]
     kb_hits = _search(question, RAG_K_KB, kinds)
     kb_blocks, kb_used = [], {}
     for hit in kb_hits:

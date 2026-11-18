@@ -933,7 +933,6 @@ $('kb').addEventListener('click', async (e) => {
   if (!k) return;
   // Clicking the label toggles expand; clicking the checkbox area toggles on/off when files exist.
   if (e.target.closest('.check')) {
-    if (k.builtin) return toast('Firm SOPs turn on automatically when Court Rules and Family Law Statutes finish indexing.');
     if (!k.files || !k.files.length) return toast(`${k.label}: upload a file into this slot first.`);
     const body = new FormData();
     body.append('source', k.id); body.append('enabled', String(!k.checked));

@@ -203,57 +203,36 @@ def workspace() -> dict:
         folders.append({"id": folder["id"], "label": folder["label"], "count": folder["count"], "files": files})
 
     raw = kb_stats(kb_enabled())
-    by_id = {s["id"]: s for s in raw}
-
-    def book_ready(source: dict) -> bool:
-        return source["files"] > 0 and not source["waiting"] and not source["indexing"]
-
-    books_ready = book_ready(by_id.get("court_rules") or {"files": 0, "waiting": 1, "indexing": False}) and book_ready(
-        by_id.get("statutes") or {"files": 0, "waiting": 1, "indexing": False}
-    )
 
     sources = []
     for source in raw:
         has_files = source["files"] > 0
-        is_firm = source["id"] == "firm"
-        # Firm SOPs are built-in. No upload. Marked On only when Court Rules + Statutes are fully indexed.
-        if is_firm:
-            if books_ready:
-                status, tone, checked, disabled = "On", "ok", True, False
-                hint = "On when NJ Court Rules and NJ Family Law Statutes are fully indexed."
-            else:
-                status, tone, checked, disabled = "Waiting", "muted", False, True
-                hint = "Turns on automatically when Court Rules and Family Law Statutes finish indexing."
-            file_list = []
-            uploadable = False
+        if source["indexing"]:
+            status, tone = f"Indexing {source['percent']}%", "busy"
+        elif source["waiting"]:
+            status, tone = "Queued", "busy"
+        elif not has_files:
+            status, tone = "Empty", "muted"
+        elif source["enabled"]:
+            status, tone = "On", "ok"
         else:
-            if source["indexing"]:
-                status, tone = f"Indexing {source['percent']}%", "busy"
-            elif source["waiting"]:
-                status, tone = "Queued", "busy"
-            elif not has_files:
-                status, tone = "Empty", "muted"
-            elif source["enabled"]:
-                status, tone = "On", "ok"
-            else:
-                status, tone = "Off", "muted"
-            checked = source["enabled"] and has_files and not source["waiting"] and not source["indexing"]
-            disabled = not has_files
-            hint = (
-                f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
-                if has_files
-                else "Upload the markdown for this source."
-            )
-            file_list = [
-                {
-                    "name": row["name"],
-                    "size": _size(row["bytes"]),
-                    "readable": True,
-                    "indexed": bool(row.get("indexed")),
-                }
-                for row in (source.get("file_rows") or [])
-            ]
-            uploadable = True
+            status, tone = "Off", "muted"
+        checked = source["enabled"] and has_files and not source["waiting"] and not source["indexing"]
+        disabled = not has_files
+        hint = (
+            f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
+            if has_files
+            else "Upload files into this knowledge-base slot."
+        )
+        file_list = [
+            {
+                "name": row["name"],
+                "size": _size(row["bytes"]),
+                "readable": True,
+                "indexed": bool(row.get("indexed")),
+            }
+            for row in (source.get("file_rows") or [])
+        ]
         sources.append(
             {
                 "id": source["id"],
@@ -264,8 +243,8 @@ def workspace() -> dict:
                 "tone": tone,
                 "hint": hint,
                 "files": file_list,
-                "uploadable": uploadable,
-                "builtin": is_firm,
+                "uploadable": True,
+                "builtin": False,
             }
         )
     active = sum(1 for s in sources if s["checked"])

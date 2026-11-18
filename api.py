@@ -232,9 +232,6 @@ def _kb_key(source: str) -> str:
 @app.post("/kb/toggle")
 def toggle_kb(source: str = Form(...), enabled: bool = Form(...)):
     key = _kb_key(source)
-    # Firm SOPs follow the books — not toggled by hand.
-    if key == "firm":
-        return workspace()
     state = kb_enabled()
     state[key] = enabled
     set_kv("kb_enabled", json.dumps(state))
@@ -243,13 +240,8 @@ def toggle_kb(source: str = Form(...), enabled: bool = Form(...)):
 
 @app.post("/kb/upload")
 async def upload_kb_files(source: str = Form(...), files: list[UploadFile] = File(...)):
-    """Upload into Court Rules or Family Law Statutes. Firm SOPs are built-in — no upload."""
+    """Upload into Court Rules, Family Law Statutes, or Firm SOPs and index in the background."""
     key = _kb_key(source)
-    if key == "firm":
-        raise HTTPException(
-            status_code=400,
-            detail="Firm SOPs are built in. Upload into Court Rules or Family Law Statutes instead.",
-        )
     src = kb_source(key)
     assert src is not None
     names = [_allowed_name(item.filename) for item in files]
@@ -287,8 +279,6 @@ def open_kb_file(source: str, name: str):
 @app.delete("/kb/file")
 def delete_kb_file(source: str, name: str):
     key = _kb_key(source)
-    if key == "firm":
-        raise HTTPException(status_code=400, detail="Firm SOPs are built in and cannot be deleted here.")
     if not remove_kb_file(key, name):
         raise HTTPException(status_code=404, detail="No such file.")
     return workspace()
