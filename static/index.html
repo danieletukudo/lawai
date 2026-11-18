@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
-<style>
-  :root {
+  <style>
+    :root {
     --navy: #16254b;
     --navy-soft: #24345d;
     --ink: #1b2233;
@@ -34,7 +34,7 @@
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body {
+    body {
     font-family: var(--sans); font-size: 13px; line-height: 1.45; color: var(--ink);
     background: var(--paper); display: grid; grid-template-rows: 54px minmax(0, 1fr);
     -webkit-font-smoothing: antialiased; overflow: hidden;
@@ -202,9 +202,10 @@
   .composer.drop { border-color: var(--navy); background: #f6f8fc; }
   .composer textarea { display: block; width: 100%; border: 0; outline: 0; resize: none; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--ink); min-height: 44px; max-height: 170px; background: transparent; }
   .composer textarea::placeholder { color: #8f939c; }
-  .attached { display: inline-flex; align-items: center; gap: 7px; background: var(--bubble); border-radius: 7px; padding: 4px 6px 4px 9px; font-size: 12px; font-weight: 600; margin-bottom: 8px; max-width: 100%; }
-  .attached span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .attached button { color: var(--muted); display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; }
+  .attached-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .attached { display: inline-flex; align-items: center; gap: 7px; background: var(--bubble); border-radius: 7px; padding: 4px 6px 4px 9px; font-size: 12px; font-weight: 600; max-width: 100%; }
+  .attached span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .attached button { color: var(--muted); display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; flex: none; }
   .attached button:hover { background: #d6dcea; color: var(--ink); }
   .composer-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
   .icon-btn { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; color: #6c7180; }
@@ -435,14 +436,14 @@
         <div id="attached"></div>
         <textarea id="input" rows="2" placeholder="Give Lori detailed drafting instructions. Shift + Enter for a new line."></textarea>
         <div class="composer-row">
-          <button class="icon-btn" id="clipBtn" title="Attach a file for this message (or drag one from the case folders)"><span data-i="clip"></span></button>
+          <button class="icon-btn" id="clipBtn" title="Attach files for this message (or drag from the case folders)"><span data-i="clip"></span></button>
           <button class="icon-btn" id="atBtn" title="Switch case"><span data-i="at"></span></button>
           <span class="sources-on" id="sourcesOn"></span>
           <button class="send" id="sendBtn" title="Send"><span data-i="arrowUp"></span></button>
         </div>
-        <input type="file" id="casePicker" accept=".pdf,.docx,.txt,.md" hidden>
+        <input type="file" id="casePicker" accept=".pdf,.docx,.txt,.md" multiple hidden>
       </div>
-      <div class="hint">Drag files from the case folders into chat to send them to Lori. Type @ to switch case.</div>
+      <div class="hint">Attach or drag multiple files into chat to send them to Lori. Type @ to switch case.</div>
     </div>
   </section>
 
@@ -514,7 +515,7 @@ const ui = {
   showAll: new Set(),               // folders showing every file
   pending: null,                    // message waiting on Lori
   failed: null,                     // last turn's error
-  attach: null,                     // case file attached to the next message
+  attach: [],                       // case files attached to the next message
   upload: null,                     // upload progress
   busy: false,
 };
@@ -669,17 +670,23 @@ function loriBlock(m) {
   return `<div class="msg-lori"><div class="lori-head"><span class="l-badge">L</span><b>Lori</b><span class="small">Drafting</span></div><div class="lori-body">${parts.join('')}</div></div>`;
 }
 function userBlock(m) {
-  const file = m.case_file ? `<div class="attach-note">${icon('clip', 13)}${esc(m.case_file.name)}${m.case_file.total ? `, ${m.case_file.used} of ${m.case_file.total} parts sent to Lori` : ''}</div>` : '';
+  const cf = m.case_file;
+  let file = '';
+  if (cf) {
+    const names = cf.names || (cf.name ? [cf.name] : []);
+    const label = names.length > 1 ? `${names.length} files: ${names.join(', ')}` : (names[0] || cf.name || '');
+    file = `<div class="attach-note">${icon('clip', 13)}${esc(label)}${cf.total ? `, ${cf.used} of ${cf.total} parts sent to Lori` : ''}</div>`;
+  }
   const caption = m.caption || [m.name, clock(m.time)].filter(Boolean).join(' \u00b7 ');
   return `<div class="msg-user"><div class="bubble">${esc(m.text)}</div>${file}<div class="caption">${esc(caption)}</div></div>`;
 }
 function renderThread(toBottom) {
   const items = S.thread.map((m) => (m.role === 'user' ? userBlock(m) : loriBlock(m)));
   if (!S.thread.length && !ui.pending) {
-    items.push(loriBlock({ text: 'I am Lori. Store case documents in the folders on the left, drag one into chat (or use the paperclip) when you want me to read it, and tell me what to prepare. Drafts open on the right as a PDF for attorney review.' }));
+    items.push(loriBlock({ text: 'I am Lori. Store case documents in the folders on the left, drag files into chat (or use the paperclip) when you want me to read them, and tell me what to prepare. Drafts open on the right as a PDF for attorney review.' }));
   }
   if (ui.pending) {
-    items.push(userBlock({ text: ui.pending.text, name: S.user.name, time: ui.pending.time, case_file: ui.pending.file ? { name: ui.pending.file } : null }));
+    items.push(userBlock({ text: ui.pending.text, name: S.user.name, time: ui.pending.time, case_file: ui.pending.files ? { name: ui.pending.files.join(', '), names: ui.pending.files } : null }));
     items.push(loriBlock({ cards: [{ title: 'Working', count: '', busy: true, sub: 'Checking the knowledge base and anything you attached.' }] }));
   }
   if (ui.failed) items.push(loriBlock({ error: ui.failed }));
@@ -720,22 +727,42 @@ function apply(next, opts = {}) {
 }
 
 /* ---------- sending a message ---------- */
-function setAttach(file) {
-  ui.attach = file || null;
-  $('attached').innerHTML = file ? `<div class="attached">${icon('clip', 13)}<span>${esc(file.name)}</span><button title="Remove" id="dropAttach">${icon('x', 11, 1.8)}</button></div>` : '';
+function renderAttach() {
+  const files = ui.attach || [];
+  $('attached').innerHTML = files.length
+    ? `<div class="attached-list">${files.map((f, i) => `
+        <div class="attached">${icon('clip', 13)}<span title="${esc(f.name)}">${esc(f.name)}</span>
+        <button type="button" title="Remove" data-drop-attach="${i}">${icon('x', 11, 1.8)}</button></div>`).join('')}</div>`
+    : '';
+}
+function clearAttach() { ui.attach = []; renderAttach(); }
+function addAttach(files) {
+  const incoming = [...files].filter(Boolean);
+  if (!incoming.length) return;
+  const seen = new Set(ui.attach.map((f) => f.name));
+  for (const f of incoming) {
+    if (seen.has(f.name)) continue;
+    seen.add(f.name);
+    ui.attach.push(f);
+  }
+  renderAttach();
 }
 async function send() {
   if (blocked() || ui.busy) return;
   const input = $('input');
   const text = input.value.trim();
-  if (!text && !ui.attach) return;
-  const file = ui.attach;
+  if (!text && !ui.attach.length) return;
+  const files = [...ui.attach];
   const body = new FormData();
   body.append('message', text);
-  if (file) body.append('case_file', file);
+  for (const f of files) body.append('case_files', f);
   ui.busy = true; ui.failed = null;
-  ui.pending = { text: text || 'Use the attached case file.', file: file ? file.name : null, time: new Date().toISOString() };
-  input.value = ''; autosize(); setAttach(null);
+  ui.pending = {
+    text: text || (files.length > 1 ? 'Use the attached case files.' : 'Use the attached case file.'),
+    files: files.map((f) => f.name),
+    time: new Date().toISOString(),
+  };
+  input.value = ''; autosize(); clearAttach();
   $('sendBtn').disabled = true;
   renderThread(true);
   try {
@@ -745,7 +772,7 @@ async function send() {
   } catch (err) {
     ui.pending = null;
     ui.failed = err.message;
-    input.value = text; autosize(); setAttach(file);
+    input.value = text; autosize(); ui.attach = files; renderAttach();
     renderThread(true);
   } finally {
     ui.busy = false;
@@ -818,7 +845,7 @@ async function uploadFiles(fileList, folderId, kbId) {
       renderUpload();
       setTimeout(() => { ui.upload = null; renderUpload(); }, 4000);
     } else ui.upload = null;
-  } catch (err) {
+      } catch (err) {
     ui.upload = null; renderUpload();
     notes.push(err.message);
   }
@@ -946,8 +973,17 @@ $('sendBtn').addEventListener('click', send);
 $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
 $('input').addEventListener('input', autosize);
 $('clipBtn').addEventListener('click', () => { if (!blocked()) $('casePicker').click(); });
-$('casePicker').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) setAttach(f); });
-$('attached').addEventListener('click', (e) => { if (e.target.closest('#dropAttach')) setAttach(null); });
+$('casePicker').addEventListener('change', (e) => {
+  const picked = [...e.target.files];
+  e.target.value = '';
+  if (picked.length) addAttach(picked);
+});
+$('attached').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-drop-attach]');
+  if (!btn) return;
+  ui.attach.splice(Number(btn.dataset.dropAttach), 1);
+  renderAttach();
+});
 const composer = $('composer');
 function canAttachDrop(dt) {
   const types = [...(dt.types || [])];
@@ -970,11 +1006,11 @@ composer.addEventListener('drop', async (e) => {
       const res = await fetch(`/library/file?folder=${encodeURIComponent(ref.folder)}&name=${encodeURIComponent(ref.name)}`);
       if (!res.ok) throw new Error('Could not load that file from the case folders.');
       const blob = await res.blob();
-      setAttach(new File([blob], ref.name, { type: blob.type || 'application/octet-stream' }));
+      addAttach([new File([blob], ref.name, { type: blob.type || 'application/octet-stream' })]);
     } catch (err) { toast(err.message || 'Could not attach that file.'); }
-    return;
-  }
-  if (e.dataTransfer.files.length) setAttach(e.dataTransfer.files[0]);
+        return;
+      }
+  if (e.dataTransfer.files.length) addAttach([...e.dataTransfer.files]);
 });
 
 const oneCase = () => toast(SAMPLE ? SAMPLE_NOTE : 'One case is set up so far. Its details are in bot/matter.json.');
@@ -1042,6 +1078,6 @@ setInterval(async () => {
   if (SAMPLE || !S || ui.busy || ui.upload || !S.kb.sources.some((k) => k.tone === 'busy')) return;
   try { const next = await call('/workspace'); S.kb = next.kb; S.folders = next.folders; S.files_label = next.files_label; renderSide(); } catch (_) { /* next tick */ }
 }, 4000);
-</script>
+  </script>
 </body>
 </html>

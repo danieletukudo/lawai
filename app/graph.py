@@ -89,19 +89,34 @@ def _message_text(content) -> str:
     return str(content or "")
 
 
+def _user_wants_end(message: str) -> bool:
+    """True only when the user message itself is a short farewell — not substring hits in replies."""
+    text = re.sub(r"\s+", " ", (message or "").strip().lower()).rstrip(".!")
+    return text in {
+        "goodbye",
+        "bye",
+        "bye bye",
+        "that's all",
+        "thats all",
+        "done for now",
+        "thanks that's all",
+        "thanks thats all",
+    }
+
+
 def node_save(state: State) -> dict:
     messages = state.get("messages") or []
     reply = ""
+    # Review only when the request_attorney_review tool was actually called this turn.
     used_review = any(getattr(item, "name", "") == "request_attorney_review" for item in messages)
     for item in reversed(messages):
         if isinstance(item, AIMessage) and item.content and not getattr(item, "tool_calls", None):
             reply = _message_text(item.content)
             break
-    text = f"{state.get('message', '')} {reply}".lower()
     control = "continue"
-    if used_review or "attorney review" in text or "ready for human review" in text:
+    if used_review:
         control = "review"
-    elif any(word in text for word in ("goodbye", "bye", "that's all", "thats all", "done for now")):
+    elif _user_wants_end(state.get("message") or ""):
         control = "end"
 
     user_id = add_message("user", state.get("message", ""))

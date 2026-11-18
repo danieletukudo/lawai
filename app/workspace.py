@@ -37,16 +37,18 @@ def turn_cards(activity: dict, case: dict | None) -> list[dict]:
     """Cards for what Lori actually received this turn (attach + knowledge base)."""
     cards = []
     if case:
+        names = case.get("names") or [case["name"]]
         whole = case["used_chunks"] == case["total_chunks"]
+        label = names[0] if len(names) == 1 else f"{len(names)} attached files"
         cards.append(
             {
-                "title": "Read attached case file",
+                "title": "Read attached case file" if len(names) == 1 else "Read attached case files",
                 "count": f"{case['used_chunks']} of {case['total_chunks']} parts",
                 "pct": round(100 * case["used_chunks"] / max(1, case["total_chunks"])),
                 "sub": (
-                    f"{case['name']}, read in full."
+                    f"{label}, read in full."
                     if whole
-                    else f"{case['name']}, the parts most relevant to your request."
+                    else f"{label}, the parts most relevant to your request."
                 )
                 + " Sent for this turn only.",
             }
@@ -58,7 +60,13 @@ def turn_chips(activity: dict, case: dict | None) -> list[str]:
     """The 'Used' chips under a reply."""
     chips = []
     if case:
-        chips.append(f"Case file: {case['name']}")
+        names = case.get("names") or [case["name"]]
+        if len(names) == 1:
+            chips.append(f"Case file: {names[0]}")
+        else:
+            chips.extend(f"Case file: {name}" for name in names[:6])
+            if len(names) > 6:
+                chips.append(f"+{len(names) - 6} more")
     for source in activity["kb"]:
         if source["id"] == "firm":
             chips.extend(f"Firm SOP: {title}" for title in source["titles"][:2])

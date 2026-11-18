@@ -36,8 +36,12 @@ def _split_front_matter(text: str) -> tuple[dict, str]:
     return {}, text.strip()
 
 
+def parse_okf_text(text: str) -> tuple[dict, str]:
+    return _split_front_matter(text)
+
+
 def parse_okf(path: Path) -> tuple[dict, str]:
-    return _split_front_matter(path.read_text(encoding="utf-8"))
+    return parse_okf_text(path.read_text(encoding="utf-8"))
 
 
 def parse_meta(path: Path) -> dict:

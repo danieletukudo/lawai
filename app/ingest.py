@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import vectors
-from .okf import chunk_text, parse_meta, parse_okf, section_label, slug, write_okf
+from .okf import chunk_text, parse_meta, parse_okf_text, section_label, slug, write_okf
 from .settings import (
     CHUNK_DIR,
     CHUNK_SIZE,
@@ -39,7 +39,8 @@ log = logging.getLogger("lori.ingest")
 # What the background indexer is doing right now (shown beside the knowledge base).
 STATUS = {"running": False, "kind": "", "name": "", "done": 0, "total": 0}
 _LIBRARY_LOCK = threading.Lock()
-_SYNC_LOCK = threading.Lock()
+# RLock so sync_all / background ingest can call ingest_file while already holding the lock.
+_SYNC_LOCK = threading.RLock()
 
 
 # --- reading files ---------------------------------------------------------
@@ -66,23 +67,29 @@ def _clean_ebook_markdown(text: str) -> str:
     if "\n:::" in text:
         text = re.sub(r"^:::\s*h_s\s*\n(.+?)\n:::\s*$", r"## \1", text, flags=re.M)
         text = re.sub(r"^:::.*$", "", text, flags=re.M)
-    # Statute titles often use --- as an em-dash; keep body readable and YAML-safe in headings.
-    text = text.replace("---", "—")
+    # Ebook titles use --- as an em-dash between words. Do not touch fence-only --- lines
+    # (YAML front matter) or bare horizontal rules.
+    text = re.sub(r"(?<=\S)---(?=\S)", "—", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
 
-def read_source(path: Path) -> str:
+def read_source(path: Path) -> tuple[dict, str]:
+    """Return (front_matter, body). Front matter is parsed before ebook cleaning."""
     suffix = path.suffix.lower()
     if suffix in {".md", ".txt"}:
-        return _clean_ebook_markdown(path.read_text(encoding="utf-8", errors="replace"))
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        front, body = parse_okf_text(raw) if raw.lstrip().startswith("---") else ({}, raw)
+        # Only clean the body — never the YAML fence.
+        return front, _clean_ebook_markdown(body)
     if suffix == ".docx":
         from docx import Document
 
-        return "\n\n".join(p.text.strip() for p in Document(str(path)).paragraphs if p.text.strip())
+        text = "\n\n".join(p.text.strip() for p in Document(str(path)).paragraphs if p.text.strip())
+        return {}, text
     if suffix == ".pdf":
-        return _read_pdf(path)
-    return ""
+        return {}, _read_pdf(path)
+    return {}, ""
 
 
 def page_count(path: Path) -> int | None:
@@ -166,17 +173,15 @@ def ingest_file(
     progress: Callable[[int, int], None] | None = None,
 ) -> dict:
     """Write OKF document + chunks for one file and (re)index its vectors."""
-    lock = _LIBRARY_LOCK if kind == "library" else threading.Lock()
+    # Library uses its own lock; KB/firm share _SYNC_LOCK with sync and delete.
+    lock = _LIBRARY_LOCK if kind == "library" else _SYNC_LOCK
     with lock:
         cid = concept_id(kind, folder, path.name)
         warnings: list[str] = []
         title = path.stem
         try:
-            text = read_source(path)
-            if path.suffix.lower() == ".md" and text.startswith("---"):
-                front, body = parse_okf(path)
-                title = str(front.get("title") or title)
-                text = body or text
+            front, text = read_source(path)
+            title = str(front.get("title") or title)
         except Exception as exc:
             text = ""
             warnings.append(f"{path.name}: could not be read ({exc}).")
@@ -290,10 +295,11 @@ def remove_kb_file(source_id: str, name: str) -> bool:
     if not source:
         return False
     path = source["dir"] / Path(name).name
-    if not path.is_file():
-        return False
-    path.unlink()
-    remove_doc(concept_id(source_id, source_id, path.name))
+    with _SYNC_LOCK:
+        if not path.is_file():
+            return False
+        path.unlink()
+        remove_doc(concept_id(source_id, source_id, path.name))
     return True
 
 

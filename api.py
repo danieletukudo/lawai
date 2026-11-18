@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.bot import reply
-from app.case_file import prepare_case_context
+from app.case_file import prepare_case_files
 from app.drafts import draft_file, file_name, get_draft, save_draft
 from app.graph import reset_engine
 from app.ingest import (
@@ -122,30 +123,47 @@ def get_workspace(sample: int = 0):
 
 
 @app.post("/chat")
-async def chat(message: str = Form(""), case_file: UploadFile | None = File(None)):
+async def chat(
+    message: str = Form(""),
+    case_files: list[UploadFile] | None = File(None),
+    case_file: UploadFile | None = File(None),
+):
     """One turn with Lori.
 
-    case_file is the file attached in chat. It is chunked for this turn only;
-    if it is large, only the most relevant parts go to the model. It is never
-    added to OKF / RAG.
+    case_files (or legacy case_file) are attached in chat for this turn only.
+    They are chunked in memory; never added to OKF / RAG.
     """
-    case = None
+    uploads: list[UploadFile] = []
+    for item in case_files or []:
+        if item is not None and (item.filename or "").strip():
+            uploads.append(item)
     if case_file is not None and (case_file.filename or "").strip():
-        name = _allowed_name(case_file.filename)
-        dest = CASE_UPLOAD_DIR / name
-        dest.write_bytes(await case_file.read())
+        uploads.append(case_file)
+
+    case = None
+    if uploads:
+        saved: list[tuple[str, Path]] = []
         try:
-            case = await run_in_threadpool(prepare_case_context, dest, message or "")
+            for item in uploads:
+                name = _allowed_name(item.filename)
+                # Unique path per request so concurrent chats with the same filename cannot collide.
+                dest = CASE_UPLOAD_DIR / f"{uuid.uuid4().hex}-{name}"
+                dest.write_bytes(await item.read())
+                saved.append((name, dest))
+            case = await run_in_threadpool(prepare_case_files, saved, message or "")
+        except HTTPException:
+            raise
         except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Could not read {name}: {exc}") from exc
+            raise HTTPException(status_code=400, detail=f"Could not read an attached file: {exc}") from exc
         finally:
-            dest.unlink(missing_ok=True)  # used for this turn only
-        if not case.get("context"):
+            for _, dest in saved:
+                dest.unlink(missing_ok=True)
+        if not case:
+            names = ", ".join(name for name, _ in saved) or "attachment"
             raise HTTPException(
                 status_code=400,
-                detail=f"No text could be read from {name}. If it is a scan, it needs OCR first.",
+                detail=f"No text could be read from {names}. If a file is a scan, it needs OCR first.",
             )
-        case["name"] = name
     if not (message or "").strip() and not case:
         raise HTTPException(status_code=400, detail="Type a message or attach a case file.")
     try:

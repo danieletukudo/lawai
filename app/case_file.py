@@ -12,8 +12,9 @@ from pathlib import Path
 from .okf import chunk_text
 from .settings import CHUNK_SIZE
 
-# How many case chunks may enter the prompt for one turn.
+# How many case chunks may enter the prompt for one turn (shared across all attachments).
 MAX_CASE_CHUNKS_TO_LLM = 8
+MAX_CASE_CHUNKS_TOTAL = 24
 # Hard stop while reading raw text into memory.
 MAX_EXTRACT_CHARS = 2_000_000
 
@@ -123,9 +124,50 @@ def select_case_chunks(
     }
 
 
-def prepare_case_context(path: str | Path, question: str = "") -> dict:
+def prepare_case_context(path: str | Path, question: str = "", *, max_chunks: int | None = None) -> dict:
     """Read case upload → chunk → select relevant pieces for the LLM (ephemeral)."""
     full = extract_text(path)
-    result = select_case_chunks(full, question)
+    result = select_case_chunks(full, question, max_chunks=max_chunks or MAX_CASE_CHUNKS_TO_LLM)
     result["chars_extracted"] = len(full)
     return result
+
+
+def merge_case_contexts(parts: list[dict]) -> dict | None:
+    """Combine several prepared attachments into one case payload for this turn."""
+    usable = [p for p in parts if (p.get("context") or "").strip()]
+    if not usable:
+        return None
+    if len(usable) == 1:
+        return usable[0]
+    blocks = []
+    total = used = 0
+    names = []
+    for part in usable:
+        names.append(part["name"])
+        total += int(part.get("total_chunks") or 0)
+        used += int(part.get("used_chunks") or 0)
+        blocks.append(f"### File: {part['name']}\n\n{part['context']}")
+    return {
+        "name": f"{len(usable)} files",
+        "names": names,
+        "context": "\n\n".join(blocks),
+        "total_chunks": total,
+        "used_chunks": used,
+        "files": usable,
+        "chunked": True,
+        "detail": f"Sent {used} parts from {len(usable)} attached files.",
+    }
+
+
+def prepare_case_files(paths: list[tuple[str, Path]], question: str = "") -> dict | None:
+    """Prepare one or many chat attachments, sharing the turn's chunk budget."""
+    if not paths:
+        return None
+    per = max(2, MAX_CASE_CHUNKS_TOTAL // max(1, len(paths)))
+    per = min(per, MAX_CASE_CHUNKS_TO_LLM)
+    parts = []
+    for name, path in paths:
+        prepared = prepare_case_context(path, question, max_chunks=per)
+        prepared["name"] = name
+        parts.append(prepared)
+    return merge_case_contexts(parts)

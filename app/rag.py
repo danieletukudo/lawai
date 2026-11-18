@@ -10,13 +10,11 @@ The record of what was used ("activity") is what the chat shows the user.
 from __future__ import annotations
 
 import json
-import re
+import logging
 
 from . import vectors
 from .ingest import bates_ranges, court_volumes, kb_stats, library_stats
-from .okf import parse_okf
 from .settings import (
-    CHUNK_DIR,
     KB_PASSAGE_CHARS,
     KB_SOURCES,
     PROMPT_PATH,
@@ -25,8 +23,9 @@ from .settings import (
 )
 from .store import get_kv
 
+log = logging.getLogger("lori.rag")
+
 KB_LABELS = {source["id"]: source["label"] for source in KB_SOURCES}
-KB_PREFIX = {"firm": "firm-", "statutes": "kb-statutes-", "court_rules": "kb-court-rules-"}
 
 
 def kb_enabled() -> dict[str, bool]:
@@ -41,36 +40,16 @@ def _mb(size: int) -> str:
     return f"{size / (1024 * 1024):.1f} MB"
 
 
-def _words(text: str) -> set[str]:
-    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2}
-
-
-def _keyword_search(question: str, prefixes: list[str], k: int) -> list[dict]:
-    """Fallback when the vector index is unavailable: score chunk files by shared words."""
-    words = _words(question)
-    scored = []
-    for prefix in prefixes:
-        for path in CHUNK_DIR.glob(f"{prefix}*.md"):
-            meta, body = parse_okf(path)
-            hay = f"{meta.get('title', '')} {meta.get('section', '')} {body}".lower()
-            score = sum(1 for w in words if w in hay)
-            if score:
-                scored.append((score, {**meta, "body": body, "key": path.name}))
-    scored.sort(key=lambda item: item[0], reverse=True)
-    return [item[1] for item in scored[:k]]
-
-
 def _search(question: str, k: int, kinds: list[str]) -> list[dict]:
     if not kinds:
         return []
     try:
-        hits = vectors.search(question, k=k, kinds=kinds)
-        if hits:
-            return hits
-    except Exception:
-        pass
-    prefixes = [KB_PREFIX[kind] for kind in kinds if kind in KB_PREFIX]
-    return _keyword_search(question, prefixes, k)
+        return vectors.search(question, k=k, kinds=kinds)
+    except Exception as exc:
+        log.exception("Qdrant knowledge-base search failed")
+        raise RuntimeError(
+            f"Knowledge-base search failed ({exc}). Check Qdrant Cloud and try again."
+        ) from exc
 
 
 def manifest_text(stats: dict, bates: dict, volumes: dict) -> str:
