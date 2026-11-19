@@ -616,7 +616,7 @@ function renderSide() {
       <div class="file-row" data-kb-file="${k.id}" data-name="${esc(x.name)}" title="${esc(x.name)}">
         ${icon('file', 14, 1.3)}<span class="name">${esc(x.name)}</span>
         <span class="size">${esc(x.size)}${x.indexed ? '' : ' · queued'}</span>
-        ${SAMPLE ? '' : `<button class="del" title="Remove from the knowledge base">${icon('x', 11, 1.8)}</button>`}
+        ${(!SAMPLE && k.uploadable !== false) ? `<button class="del" title="Remove from the knowledge base">${icon('x', 11, 1.8)}</button>` : ''}
       </div>`).join('');
     return `<div class="kb-block" data-kb-block="${k.id}">
       <div class="kb-row" data-kb="${k.id}" title="${esc(k.hint)}">
@@ -625,7 +625,7 @@ function renderSide() {
         <span class="status ${k.tone}">${esc(k.status)}</span>
         ${(!SAMPLE && k.uploadable !== false) ? `<button class="kb-up" data-kb-up="${k.id}" title="Upload into ${esc(k.label)}">${icon('upload', 14)}</button>` : ''}
       </div>
-      ${open && k.uploadable !== false ? `<div class="kb-files">${rows || '<div class="kb-empty">No file yet — upload the markdown here.</div>'}</div>` : ''}
+      ${open ? `<div class="kb-files">${rows || (k.uploadable === false ? '<div class="kb-empty">OKF bundle not found on disk.</div>' : '<div class="kb-empty">No file yet — upload the markdown here.</div>')}</div>` : ''}
   </div>`;
   }).join('');
 }

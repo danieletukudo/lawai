@@ -2,7 +2,8 @@
 
 * Case folders: storage only. The manifest lists what is on disk. File text reaches
   Lori only when the user attaches or drags a file into chat (handled as case_file).
-* Knowledge base: the best matching passages from the sources switched on.
+* Knowledge base: Court Rules / Statutes by search; Firm SOPs = curated OKF bundle
+  (drafting examples + guides) with catalog + matching passages.
 
 The record of what was used ("activity") is what the chat shows the user.
 """
@@ -13,11 +14,13 @@ import json
 import logging
 
 from . import vectors
-from .ingest import bates_ranges, court_volumes, kb_stats, library_stats
+from .ingest import bates_ranges, court_volumes, kb_source, kb_stats, library_stats
 from .settings import (
+    FIRM_PASSAGE_CHARS,
     KB_PASSAGE_CHARS,
     KB_SOURCES,
     PROMPT_PATH,
+    RAG_K_FIRM,
     RAG_K_KB,
     load_matter,
 )
@@ -50,6 +53,24 @@ def _search(question: str, k: int, kinds: list[str]) -> list[dict]:
         raise RuntimeError(
             f"Knowledge-base search failed ({exc}). Check Qdrant Cloud and try again."
         ) from exc
+
+
+def _firm_catalog() -> str:
+    """Short map of the Firm SOPs OKF bundle from its index.md."""
+    source = kb_source("firm")
+    if not source:
+        return ""
+    index = source["dir"] / "index.md"
+    if not index.is_file():
+        return ""
+    try:
+        text = index.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    if text.lstrip().startswith("---"):
+        parts = text.split("---", 2)
+        text = parts[2] if len(parts) >= 3 else text
+    return text.strip()[:6_000]
 
 
 def manifest_text(stats: dict, bates: dict, volumes: dict) -> str:
@@ -94,18 +115,22 @@ def manifest_text(stats: dict, bates: dict, volumes: dict) -> str:
 
 
 def build_context(question: str) -> dict:
-    """Knowledge-base passages for this turn, plus a case-folder inventory (no auto text)."""
+    """Knowledge-base + Firm SOPs OKF passages for this turn, plus case-folder inventory."""
     stats = library_stats()
     files = [item for folder in stats["folders"] for item in folder["files"]]
     exhibits = next(f["files"] for f in stats["folders"] if f["id"] == "exhibits")
     bates = bates_ranges(exhibits)
     volumes = court_volumes(exhibits)
 
-    # Knowledge base: Court Rules, Statutes, and Firm SOPs when switched on and indexed.
     enabled = kb_enabled()
     kb = kb_stats(enabled)
-    kinds = [s["id"] for s in kb if s["chunks"] and s["enabled"]]
-    kb_hits = _search(question, RAG_K_KB, kinds)
+
+    ref_kinds = [s["id"] for s in kb if s["chunks"] and s["enabled"] and s["id"] != "firm"]
+    firm_on = any(s["id"] == "firm" and s["chunks"] and s["enabled"] for s in kb)
+
+    kb_hits = _search(question, RAG_K_KB, ref_kinds)
+    firm_hits = _search(question, RAG_K_FIRM, ["firm"]) if firm_on else []
+
     kb_blocks, kb_used = [], {}
     for hit in kb_hits:
         kind = hit.get("kind", "")
@@ -118,11 +143,37 @@ def build_context(question: str) -> dict:
         if title not in kb_used[kind]:
             kb_used[kind].append(title)
 
+    firm_blocks = []
+    if firm_on:
+        catalog = _firm_catalog()
+        if catalog:
+            firm_blocks.append(
+                "[Firm SOPs / OKF bundle index]\n"
+                "Curated firm drafting examples and guides. Use for structure and tone. "
+                "Do not copy party names or facts from examples into a new matter.\n\n"
+                + catalog
+            )
+        for hit in firm_hits:
+            title = hit.get("title") or hit.get("source_file", "")
+            section = f" | {hit['section']}" if hit.get("section") else ""
+            firm_blocks.append(
+                f"[Firm SOPs / {title}{section}]\n{str(hit.get('body', ''))[:FIRM_PASSAGE_CHARS]}"
+            )
+            kb_used.setdefault("firm", [])
+            if title not in kb_used["firm"]:
+                kb_used["firm"].append(title)
+
+    knowledge_parts = []
+    if kb_blocks:
+        knowledge_parts.append("### Reference passages\n\n" + "\n\n".join(kb_blocks))
+    if firm_blocks:
+        knowledge_parts.append("### Firm SOPs (OKF)\n\n" + "\n\n".join(firm_blocks))
+
     activity = {
         "mode": "empty" if not files else "inventory",
         "files_total": len(files),
         "files_used": 0,
-        "passages": 0,
+        "passages": len(kb_hits) + len(firm_hits),
         "unreadable": [],
         "folders": [],
         "kb": [{"id": kind, "label": KB_LABELS.get(kind, kind), "titles": titles} for kind, titles in kb_used.items()],
@@ -135,7 +186,7 @@ def build_context(question: str) -> dict:
             "No case-folder text was auto-loaded. "
             "File text arrives only when the user attaches or drags a file into chat this turn."
         ),
-        "knowledge": "\n\n".join(kb_blocks),
+        "knowledge": "\n\n".join(knowledge_parts),
         "activity": activity,
     }
 

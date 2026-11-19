@@ -244,6 +244,11 @@ async def upload_kb_files(source: str = Form(...), files: list[UploadFile] = Fil
     key = _kb_key(source)
     src = kb_source(key)
     assert src is not None
+    if src.get("uploadable") is False or src.get("mode") == "okf_bundle":
+        raise HTTPException(
+            status_code=400,
+            detail="Firm SOPs are the OKF bundle on disk (okf-matrimonial-drafting/). Update files there and reindex.",
+        )
     names = [_allowed_name(item.filename) for item in files]
     payloads = [await item.read() for item in files]
     if sum(len(p) for p in payloads) > UPLOAD_BATCH_MB * 1024 * 1024:
@@ -266,11 +271,31 @@ async def upload_kb_files(source: str = Form(...), files: list[UploadFile] = Fil
     }
 
 
+def _kb_file_path(src: dict, name: str) -> Path:
+    """Resolve a KB file path. Firm SOPs OKF may use paths like examples/pension/before.md."""
+    root = src["dir"].resolve()
+    raw = (name or "").strip().lstrip("/")
+    if src.get("mode") == "okf_bundle":
+        path = (root / raw).resolve()
+        if path.is_file() and (root in path.parents or path.parent == root):
+            return path
+        for extra in src.get("extra_dirs") or ():
+            extra_root = Path(extra).resolve()
+            candidate = (extra_root / Path(raw).name).resolve()
+            if candidate.is_file() and (extra_root in candidate.parents or candidate.parent == extra_root):
+                return candidate
+        raise HTTPException(status_code=404, detail="No such file.")
+    path = (root / Path(raw).name).resolve()
+    if root not in path.parents and path != root:
+        raise HTTPException(status_code=400, detail="Invalid knowledge-base path.")
+    return path
+
+
 @app.get("/kb/file")
 def open_kb_file(source: str, name: str):
     src = kb_source(_kb_key(source))
     assert src is not None
-    path = src["dir"] / Path(name).name
+    path = _kb_file_path(src, name)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="No such file.")
     return FileResponse(path, filename=path.name, content_disposition_type="inline")
@@ -279,6 +304,12 @@ def open_kb_file(source: str, name: str):
 @app.delete("/kb/file")
 def delete_kb_file(source: str, name: str):
     key = _kb_key(source)
+    src = kb_source(key)
+    if src and (src.get("uploadable") is False or src.get("mode") == "okf_bundle"):
+        raise HTTPException(
+            status_code=400,
+            detail="Firm SOPs are the OKF bundle on disk and cannot be deleted here. Update okf-matrimonial-drafting/ instead.",
+        )
     if not remove_kb_file(key, name):
         raise HTTPException(status_code=404, detail="No such file.")
     return workspace()

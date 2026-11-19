@@ -4,8 +4,10 @@ Case folders (Exhibits, Pleadings, Discovery, Financials, Correspondence) are
 storage only. They are listed in the UI and dragged into chat when needed.
 They are never indexed here. Chat attachments go through app.case_file instead.
 
-Only the knowledge base (NJ Court Rules, NJ Family Law Statutes, Firm SOPs)
-is ingested into OKF + RAG.
+Knowledge base:
+* Court Rules / Statutes / Firm SOPs — source files are read and split for retrieval.
+* Firm SOPs — curated OKF bundle (examples of how the firm drafts) plus small
+  guides; indexed as-is (source OKF files are never rewritten).
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import vectors
-from .okf import chunk_text, parse_meta, parse_okf_text, section_label, slug, write_okf
+from .okf import chunk_text, parse_meta, parse_okf, parse_okf_text, section_label, slug, write_okf
 from .settings import (
     CHUNK_DIR,
     CHUNK_SIZE,
@@ -107,10 +109,17 @@ def page_count(path: Path) -> int | None:
 # --- naming ----------------------------------------------------------------
 
 
+def kb_source(source_id: str) -> dict | None:
+    return next((s for s in KB_SOURCES if s["id"] == source_id), None)
+
+
 def concept_id(kind: str, folder: str, name: str) -> str:
     if kind == "library":
         return f"lib-{folder}-{slug(name)}"
     if kind == "firm":
+        # folder is relative path inside the OKF bundle (e.g. examples/pension), or "firm" for guides.
+        if folder and folder not in {"firm", ".", ""}:
+            return f"firm-{slug(folder)}-{slug(name)}"
         return f"firm-{slug(name)}"
     return f"kb-{slug(kind)}-{slug(name)}"
 
@@ -142,6 +151,25 @@ def _files_in(directory: Path) -> list[Path]:
     )
 
 
+def _bundle_files(directory: Path) -> list[Path]:
+    """Recursive markdown concepts in an OKF bundle (skip index/log at root are included)."""
+    if not directory.exists():
+        return []
+    found = [
+        p
+        for p in directory.rglob("*.md")
+        if p.is_file() and not any(part.startswith(".") for part in p.parts)
+    ]
+    return sorted(found, key=lambda p: _natural(p.as_posix()))
+
+
+def _bundle_rel(root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.name
+
+
 def doc_meta(cid: str) -> dict:
     path = _doc_path(cid)
     if not path.exists():
@@ -155,11 +183,23 @@ def doc_meta(cid: str) -> dict:
 def sources() -> list[tuple[str, str, Path]]:
     """Every knowledge-base file that should be in the index. Case folders are excluded."""
     found: list[tuple[str, str, Path]] = []
-    for path in _files_in(KB_SOURCES[2]["dir"]):
-        found.append(("firm", "firm", path))
-    for source in KB_SOURCES[:2]:
+    for source in KB_SOURCES:
+        kind = source["id"]
+        if source.get("mode") == "okf_bundle":
+            root = source["dir"]
+            if root.exists():
+                for path in _bundle_files(root):
+                    rel = _bundle_rel(root, path)
+                    folder = str(Path(rel).parent).replace("\\", "/")
+                    if folder in {"", "."}:
+                        folder = kind
+                    found.append((kind, folder, path))
+            for extra in source.get("extra_dirs") or ():
+                for path in _files_in(Path(extra)):
+                    found.append((kind, kind, path))
+            continue
         for path in _files_in(source["dir"]):
-            found.append((source["id"], source["id"], path))
+            found.append((kind, kind, path))
     return found
 
 
@@ -172,26 +212,68 @@ def ingest_file(
     path: Path,
     progress: Callable[[int, int], None] | None = None,
 ) -> dict:
-    """Write OKF document + chunks for one file and (re)index its vectors."""
-    # Library uses its own lock; KB/firm share _SYNC_LOCK with sync and delete.
+    """Write retrieval chunks + vectors for one file.
+
+    OKF bundles (mode=okf_bundle): the source concept file is left untouched.
+    Only derived retrieval passages under knowledge/okf/ are written.
+    """
+    # Library uses its own lock; KB/firm/bundles share _SYNC_LOCK with sync and delete.
     lock = _LIBRARY_LOCK if kind == "library" else _SYNC_LOCK
+    source = kb_source(kind) or {}
+    as_is = source.get("mode") == "okf_bundle"
     with lock:
         cid = concept_id(kind, folder, path.name)
         warnings: list[str] = []
         title = path.stem
+        concept_type = ""
+        description = ""
+        tags: list[str] = []
         try:
-            front, text = read_source(path)
-            title = str(front.get("title") or title)
+            if as_is:
+                # Already OKF — parse front matter; do not run ebook cleaning.
+                front, text = parse_okf(path)
+                title = str(front.get("title") or title)
+                concept_type = str(front.get("type") or "")
+                description = str(front.get("description") or "")
+                raw_tags = front.get("tags") or []
+                if isinstance(raw_tags, list):
+                    tags = [str(t) for t in raw_tags]
+            else:
+                front, text = read_source(path)
+                title = str(front.get("title") or title)
         except Exception as exc:
             text = ""
             warnings.append(f"{path.name}: could not be read ({exc}).")
         if not text and not warnings:
             warnings.append(f"{path.name}: no text found (scanned image?). Listed, but Lori cannot read it.")
 
+        # Lead card helps retrieval find the right concept from title/type/tags.
+        lead_bits = [f"# {title}"]
+        if concept_type:
+            lead_bits.append(f"Type: {concept_type}")
+        if description:
+            lead_bits.append(description)
+        if tags:
+            lead_bits.append("Tags: " + ", ".join(tags))
+        lead = "\n\n".join(lead_bits)
+
         chunk_size = CHUNK_SIZE if kind == "library" else KB_CHUNK_SIZE
         limit = MAX_CHUNKS_PER_FILE if kind == "library" else KB_MAX_CHUNKS_PER_FILE
-        pieces = chunk_text(text, chunk_size=chunk_size, max_chunks=limit) if text else []
-        log.info("Chunked %s into %s passages (%s chars)", path.name, len(pieces), len(text))
+        if text and as_is and len(text) <= chunk_size:
+            pieces = [("concept", f"{lead}\n\n{text}")]
+        elif text:
+            body_pieces = chunk_text(text, chunk_size=chunk_size, max_chunks=max(1, limit - 1))
+            pieces = [("overview", lead)] + body_pieces if body_pieces else [("concept", lead)]
+        else:
+            pieces = []
+        log.info(
+            "%s %s into %s passages (%s chars)%s",
+            "Indexed" if as_is else "Chunked",
+            path.name,
+            len(pieces),
+            len(text),
+            " [OKF as-is]" if as_is else "",
+        )
 
         for old in _chunk_paths(cid):
             old.unlink()
@@ -200,25 +282,33 @@ def ingest_file(
         except Exception:
             log.exception("Could not clear old vectors for %s", cid)
 
+        display_name = f"{folder}/{path.name}" if as_is and folder not in {kind, ".", ""} else path.name
         meta = {
             "type": "Document",
             "kind": kind,
             "folder": folder,
             "title": title,
-            "source_file": path.name,
+            "source_file": display_name,
+            "source_path": str(path),
+            "okf_as_is": as_is,
             "signature": _signature(path),
             "bytes": path.stat().st_size,
             "pages": page_count(path),
             "chars": len(text),
             "chunks": len(pieces),
         }
-        # Parent OKF keeps a short stub — full book body is on disk in knowledge/kb/.
-        stub = text if len(text) <= 50_000 else text[:50_000] + "\n\n…[truncated for OKF; full source remains in the knowledge folder]"
+        # Parent stub only — never overwrite the curated OKF source.
+        stub = (
+            f"{lead}\n\nSource concept: `{display_name}`\n\n"
+            + (text[:8_000] + ("\n\n…[truncated; full concept remains in the OKF bundle]" if len(text) > 8_000 else text))
+        )
         write_okf(_doc_path(cid), meta, stub)
 
         records: list[dict] = []
         for index, (section, body) in enumerate(pieces, start=1):
-            label = section_label(section) if section != "section" else ""
+            label = section_label(section) if section not in {"section", "concept", "overview"} else section
+            if label in {"concept", "overview"}:
+                label = title if label == "concept" else "overview"
             key = f"{cid}--{index:04d}.md"
             write_okf(
                 CHUNK_DIR / key,
@@ -229,7 +319,7 @@ def ingest_file(
                     "title": title,
                     "parent": cid,
                     "section": label,
-                    "source_file": path.name,
+                    "source_file": display_name,
                     "index": index,
                 },
                 body,
@@ -243,7 +333,7 @@ def ingest_file(
                     "parent": cid,
                     "title": title,
                     "section": label,
-                    "source_file": path.name,
+                    "source_file": display_name,
                 }
             )
 
@@ -260,7 +350,7 @@ def ingest_file(
             meta["vectors"] = 0
             write_okf(_doc_path(cid), meta, stub)
 
-        return {"cid": cid, "name": path.name, "chunks": len(pieces), "vectors": stored, "warnings": warnings}
+        return {"cid": cid, "name": display_name, "chunks": len(pieces), "vectors": stored, "warnings": warnings}
 
 
 def remove_doc(cid: str) -> None:
@@ -285,14 +375,10 @@ def remove_library_file(folder: str, name: str) -> bool:
     return True
 
 
-def kb_source(source_id: str) -> dict | None:
-    return next((s for s in KB_SOURCES if s["id"] == source_id), None)
-
-
 def remove_kb_file(source_id: str, name: str) -> bool:
-    """Remove a knowledge-base file (court rules / statutes / firm SOPs)."""
+    """Remove a knowledge-base file (court rules / statutes / firm SOPs). Not for OKF bundles."""
     source = kb_source(source_id)
-    if not source:
+    if not source or source.get("mode") == "okf_bundle":
         return False
     path = source["dir"] / Path(name).name
     with _SYNC_LOCK:
@@ -477,37 +563,57 @@ def court_volumes(exhibits: list[dict]) -> dict:
 def kb_stats(enabled: dict[str, bool]) -> list[dict]:
     out = []
     for source in KB_SOURCES:
-        files = _files_in(source["dir"])
+        kind = source["id"]
+        as_is = source.get("mode") == "okf_bundle"
+        root = source["dir"]
+        entries: list[tuple[str, str, Path, str]] = []  # folder, name, path, display
+        if as_is:
+            if root.exists():
+                for path in _bundle_files(root):
+                    rel = _bundle_rel(root, path)
+                    folder = str(Path(rel).parent).replace("\\", "/")
+                    if folder in {"", "."}:
+                        folder = kind
+                    entries.append((folder, path.name, path, rel))
+            for extra in source.get("extra_dirs") or ():
+                for path in _files_in(Path(extra)):
+                    entries.append((kind, path.name, path, path.name))
+        else:
+            for path in _files_in(root):
+                entries.append((kind, path.name, path, path.name))
+
         chunks = vectors_done = waiting = 0
         file_rows = []
-        for path in files:
-            meta = doc_meta(concept_id(source["id"], source["id"], path.name))
+        for folder, name, path, display in entries:
+            meta = doc_meta(concept_id(kind, folder, name))
             chunks += int(meta.get("chunks") or 0)
             vectors_done += int(meta.get("vectors") or 0)
             if "vectors" not in meta or meta.get("signature") != _signature(path):
                 waiting += 1
             file_rows.append(
                 {
-                    "name": path.name,
+                    "name": display,
                     "bytes": path.stat().st_size,
                     "chunks": int(meta.get("chunks") or 0),
                     "indexed": "vectors" in meta,
                 }
             )
-        indexing = STATUS["running"] and STATUS["kind"] == source["id"]
+        indexing = STATUS["running"] and STATUS["kind"] == kind
         percent = int(100 * STATUS["done"] / STATUS["total"]) if indexing and STATUS["total"] else 0
         out.append(
             {
-                "id": source["id"],
+                "id": kind,
                 "label": source["label"],
-                "files": len(files),
+                "files": len(entries),
                 "file_rows": file_rows,
                 "chunks": chunks,
                 "vectors": vectors_done,
-                "enabled": bool(enabled.get(source["id"], True)),
+                "enabled": bool(enabled.get(kind, True)),
                 "indexing": indexing,
-                "waiting": waiting,  # files not in the index yet
+                "waiting": waiting,
                 "percent": percent,
+                "uploadable": bool(source.get("uploadable", True)),
+                "mode": source.get("mode") or "source",
             }
         )
     return out

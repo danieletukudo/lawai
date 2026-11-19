@@ -40,6 +40,8 @@ LIBRARY_FOLDERS = (
 # --- Knowledge base (left panel toggles). Reference material, not case files. -
 FIRM_DIR = ROOT / "knowledge" / "firm"
 KB_DIR = ROOT / "knowledge" / "kb"
+# Firm SOPs = curated OKF 0.2 bundle (repo sibling of bot/) plus small guides in knowledge/firm/.
+OKF_MATRIMONIAL_DIR = (ROOT.parent / "okf-matrimonial-drafting").resolve()
 KB_SOURCES = (
     {
         "id": "court_rules",
@@ -54,7 +56,11 @@ KB_SOURCES = (
     {
         "id": "firm",
         "label": "Firm SOPs",
-        "dir": FIRM_DIR,
+        # Primary: Gregory's matrimonial OKF bundle (indexed as-is).
+        "dir": OKF_MATRIMONIAL_DIR,
+        "extra_dirs": (FIRM_DIR,),
+        "mode": "okf_bundle",
+        "uploadable": False,
     },
 )
 # Old drop folder from the sales bot. Kept so nothing breaks; no longer read.
@@ -80,8 +86,10 @@ KB_CHUNK_SIZE = 4500  # larger passages → fewer Qdrant Cloud embedding calls f
 KB_MAX_CHUNKS_PER_FILE = 1800  # hard cap so one 9MB book cannot create thousands of vectors
 
 # Retrieval (knowledge base only — case folders are not searched)
-RAG_K_KB = 4  # passages from the knowledge base
+RAG_K_KB = 4  # passages from rules / statutes
+RAG_K_FIRM = 4  # Firm SOPs OKF passages (examples + guides)
 KB_PASSAGE_CHARS = 4000  # trim very long knowledge-base passages
+FIRM_PASSAGE_CHARS = 6000  # firm OKF examples may need more shape than a statute bite
 
 # Uploads / court portal
 UPLOAD_BATCH_MB = 35
@@ -102,6 +110,9 @@ for folder in (
 for name in LIBRARY_FOLDERS:
     (LIBRARY_DIR / name).mkdir(parents=True, exist_ok=True)
 for source in KB_SOURCES:
+    # Bundles that live outside bot/ (e.g. repo-root OKF) are not created here.
+    if source.get("mode") == "okf_bundle":
+        continue
     source["dir"].mkdir(parents=True, exist_ok=True)
 
 

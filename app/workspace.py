@@ -69,7 +69,7 @@ def turn_chips(activity: dict, case: dict | None) -> list[str]:
                 chips.append(f"+{len(names) - 6} more")
     for source in activity["kb"]:
         if source["id"] == "firm":
-            chips.extend(f"Firm SOP: {title}" for title in source["titles"][:2])
+            chips.extend(f"Firm SOP: {title}" for title in source["titles"][:4])
         else:
             chips.append(source["label"])
     return chips
@@ -219,11 +219,17 @@ def workspace() -> dict:
             status, tone = "Off", "muted"
         checked = source["enabled"] and has_files and not source["waiting"] and not source["indexing"]
         disabled = not has_files
-        hint = (
-            f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
-            if has_files
-            else "Upload files into this knowledge-base slot."
-        )
+        uploadable = bool(source.get("uploadable", True))
+        if has_files:
+            hint = (
+                f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
+            )
+            if source.get("mode") == "okf_bundle":
+                hint += " · OKF (indexed as-is)"
+        elif source.get("mode") == "okf_bundle":
+            hint = "Firm SOPs OKF bundle not found on disk."
+        else:
+            hint = "Upload files into this knowledge-base slot."
         file_list = [
             {
                 "name": row["name"],
@@ -243,8 +249,8 @@ def workspace() -> dict:
                 "tone": tone,
                 "hint": hint,
                 "files": file_list,
-                "uploadable": True,
-                "builtin": False,
+                "uploadable": uploadable,
+                "builtin": source.get("mode") == "okf_bundle",
             }
         )
     active = sum(1 for s in sources if s["checked"])
