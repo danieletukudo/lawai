@@ -23,6 +23,7 @@ COPY static ./static
 COPY samples ./samples
 COPY knowledge ./knowledge
 RUN mkdir -p knowledge/raw knowledge/firm knowledge/library knowledge/kb knowledge/okf/chunks \
+        knowledge/okf-bundles \
         data/drafts data/saved data/case_uploads \
     && chown -R appuser:appuser /app /home/appuser
 USER appuser

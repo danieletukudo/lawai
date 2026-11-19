@@ -40,8 +40,9 @@ LIBRARY_FOLDERS = (
 # --- Knowledge base (left panel toggles). Reference material, not case files. -
 FIRM_DIR = ROOT / "knowledge" / "firm"
 KB_DIR = ROOT / "knowledge" / "kb"
-# Gregory's curated OKF 0.2 drafting examples (repo sibling of bot/).
-OKF_MATRIMONIAL_DIR = (ROOT.parent / "okf-matrimonial-drafting").resolve()
+# Gregory's curated OKF 0.2 drafting examples (shipped inside bot/ for Docker/Render).
+OKF_BUNDLES_DIR = ROOT / "knowledge" / "okf-bundles"
+OKF_MATRIMONIAL_DIR = OKF_BUNDLES_DIR / "matrimonial-drafting"
 KB_SOURCES = (
     {
         "id": "court_rules",
@@ -107,6 +108,7 @@ for folder in (
     LIBRARY_DIR,
     OKF_DIR,
     CHUNK_DIR,
+    OKF_BUNDLES_DIR,
     DATA_DIR,
     DRAFT_DIR,
     SAVED_DIR,
@@ -116,7 +118,7 @@ for folder in (
 for name in LIBRARY_FOLDERS:
     (LIBRARY_DIR / name).mkdir(parents=True, exist_ok=True)
 for source in KB_SOURCES:
-    # Bundles that live outside bot/ (e.g. repo-root OKF) are not created here.
+    # OKF bundles are shipped with the repo; don't create empty stub dirs over them.
     if source.get("mode") == "okf_bundle":
         continue
     source["dir"].mkdir(parents=True, exist_ok=True)

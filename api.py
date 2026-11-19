@@ -247,7 +247,7 @@ async def upload_kb_files(source: str = Form(...), files: list[UploadFile] = Fil
     if src.get("uploadable") is False or src.get("mode") == "okf_bundle":
         raise HTTPException(
             status_code=400,
-            detail="Firm drafting examples are an OKF bundle on disk. Replace files in okf-matrimonial-drafting/ and reindex.",
+            detail="Firm drafting examples are an OKF bundle on disk. Replace files in knowledge/okf-bundles/matrimonial-drafting/ and reindex.",
         )
     names = [_allowed_name(item.filename) for item in files]
     payloads = [await item.read() for item in files]
