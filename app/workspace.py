@@ -69,7 +69,9 @@ def turn_chips(activity: dict, case: dict | None) -> list[str]:
                 chips.append(f"+{len(names) - 6} more")
     for source in activity["kb"]:
         if source["id"] == "firm":
-            chips.extend(f"Firm SOP: {title}" for title in source["titles"][:4])
+            chips.extend(f"Firm SOP: {title}" for title in source["titles"][:2])
+        elif source["id"] == "drafting_examples":
+            chips.extend(f"Drafting example: {title}" for title in source["titles"][:3])
         else:
             chips.append(source["label"])
     return chips
@@ -225,9 +227,9 @@ def workspace() -> dict:
                 f"{_plural(source['files'], 'file')}, {source['vectors']} of {_plural(source['chunks'], 'passage')} indexed"
             )
             if source.get("mode") == "okf_bundle":
-                hint += " · OKF (indexed as-is)"
+                hint += " · OKF bundle (indexed as-is)"
         elif source.get("mode") == "okf_bundle":
-            hint = "Firm SOPs OKF bundle not found on disk."
+            hint = "OKF drafting bundle not found on disk."
         else:
             hint = "Upload files into this knowledge-base slot."
         file_list = [

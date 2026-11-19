@@ -2,8 +2,8 @@
 
 * Case folders: storage only. The manifest lists what is on disk. File text reaches
   Lori only when the user attaches or drags a file into chat (handled as case_file).
-* Knowledge base: Court Rules / Statutes by search; Firm SOPs = curated OKF bundle
-  (drafting examples + guides) with catalog + matching passages.
+* Knowledge base: best matching passages from sources switched on (rules, statutes, SOPs).
+* Firm drafting examples: curated OKF bundle — index catalog + matching example passages.
 
 The record of what was used ("activity") is what the chat shows the user.
 """
@@ -16,11 +16,11 @@ import logging
 from . import vectors
 from .ingest import bates_ranges, court_volumes, kb_source, kb_stats, library_stats
 from .settings import (
-    FIRM_PASSAGE_CHARS,
+    EXAMPLE_PASSAGE_CHARS,
     KB_PASSAGE_CHARS,
     KB_SOURCES,
     PROMPT_PATH,
-    RAG_K_FIRM,
+    RAG_K_EXAMPLES,
     RAG_K_KB,
     load_matter,
 )
@@ -55,9 +55,9 @@ def _search(question: str, k: int, kinds: list[str]) -> list[dict]:
         ) from exc
 
 
-def _firm_catalog() -> str:
-    """Short map of the Firm SOPs OKF bundle from its index.md."""
-    source = kb_source("firm")
+def _examples_catalog() -> str:
+    """Short map of the drafting OKF bundle from its index.md (progressive disclosure)."""
+    source = kb_source("drafting_examples")
     if not source:
         return ""
     index = source["dir"] / "index.md"
@@ -67,6 +67,7 @@ def _firm_catalog() -> str:
         text = index.read_text(encoding="utf-8")
     except OSError:
         return ""
+    # Drop YAML fence if present; keep the linked catalog body.
     if text.lstrip().startswith("---"):
         parts = text.split("---", 2)
         text = parts[2] if len(parts) >= 3 else text
@@ -115,7 +116,7 @@ def manifest_text(stats: dict, bates: dict, volumes: dict) -> str:
 
 
 def build_context(question: str) -> dict:
-    """Knowledge-base + Firm SOPs OKF passages for this turn, plus case-folder inventory."""
+    """Knowledge-base + drafting-example passages for this turn, plus case-folder inventory."""
     stats = library_stats()
     files = [item for folder in stats["folders"] for item in folder["files"]]
     exhibits = next(f["files"] for f in stats["folders"] if f["id"] == "exhibits")
@@ -125,11 +126,15 @@ def build_context(question: str) -> dict:
     enabled = kb_enabled()
     kb = kb_stats(enabled)
 
-    ref_kinds = [s["id"] for s in kb if s["chunks"] and s["enabled"] and s["id"] != "firm"]
-    firm_on = any(s["id"] == "firm" and s["chunks"] and s["enabled"] for s in kb)
+    ref_kinds = [
+        s["id"]
+        for s in kb
+        if s["chunks"] and s["enabled"] and s["id"] != "drafting_examples"
+    ]
+    example_on = any(s["id"] == "drafting_examples" and s["chunks"] and s["enabled"] for s in kb)
 
     kb_hits = _search(question, RAG_K_KB, ref_kinds)
-    firm_hits = _search(question, RAG_K_FIRM, ["firm"]) if firm_on else []
+    example_hits = _search(question, RAG_K_EXAMPLES, ["drafting_examples"]) if example_on else []
 
     kb_blocks, kb_used = [], {}
     for hit in kb_hits:
@@ -143,37 +148,38 @@ def build_context(question: str) -> dict:
         if title not in kb_used[kind]:
             kb_used[kind].append(title)
 
-    firm_blocks = []
-    if firm_on:
-        catalog = _firm_catalog()
+    example_blocks = []
+    if example_on:
+        catalog = _examples_catalog()
         if catalog:
-            firm_blocks.append(
-                "[Firm SOPs / OKF bundle index]\n"
-                "Curated firm drafting examples and guides. Use for structure and tone. "
+            example_blocks.append(
+                "[Firm drafting examples / bundle index]\n"
+                "Use these curated firm examples for structure and tone when drafting. "
                 "Do not copy party names or facts from examples into a new matter.\n\n"
                 + catalog
             )
-        for hit in firm_hits:
+        for hit in example_hits:
             title = hit.get("title") or hit.get("source_file", "")
             section = f" | {hit['section']}" if hit.get("section") else ""
-            firm_blocks.append(
-                f"[Firm SOPs / {title}{section}]\n{str(hit.get('body', ''))[:FIRM_PASSAGE_CHARS]}"
+            example_blocks.append(
+                f"[Firm drafting example / {title}{section}]\n"
+                f"{str(hit.get('body', ''))[:EXAMPLE_PASSAGE_CHARS]}"
             )
-            kb_used.setdefault("firm", [])
-            if title not in kb_used["firm"]:
-                kb_used["firm"].append(title)
+            kb_used.setdefault("drafting_examples", [])
+            if title not in kb_used["drafting_examples"]:
+                kb_used["drafting_examples"].append(title)
 
     knowledge_parts = []
     if kb_blocks:
         knowledge_parts.append("### Reference passages\n\n" + "\n\n".join(kb_blocks))
-    if firm_blocks:
-        knowledge_parts.append("### Firm SOPs (OKF)\n\n" + "\n\n".join(firm_blocks))
+    if example_blocks:
+        knowledge_parts.append("### Firm drafting examples (OKF)\n\n" + "\n\n".join(example_blocks))
 
     activity = {
         "mode": "empty" if not files else "inventory",
         "files_total": len(files),
         "files_used": 0,
-        "passages": len(kb_hits) + len(firm_hits),
+        "passages": len(kb_hits) + len(example_hits),
         "unreadable": [],
         "folders": [],
         "kb": [{"id": kind, "label": KB_LABELS.get(kind, kind), "titles": titles} for kind, titles in kb_used.items()],

@@ -40,7 +40,7 @@ LIBRARY_FOLDERS = (
 # --- Knowledge base (left panel toggles). Reference material, not case files. -
 FIRM_DIR = ROOT / "knowledge" / "firm"
 KB_DIR = ROOT / "knowledge" / "kb"
-# Firm SOPs = curated OKF 0.2 bundle (repo sibling of bot/) plus small guides in knowledge/firm/.
+# Gregory's curated OKF 0.2 drafting examples (repo sibling of bot/).
 OKF_MATRIMONIAL_DIR = (ROOT.parent / "okf-matrimonial-drafting").resolve()
 KB_SOURCES = (
     {
@@ -56,9 +56,15 @@ KB_SOURCES = (
     {
         "id": "firm",
         "label": "Firm SOPs",
-        # Primary: Gregory's matrimonial OKF bundle (indexed as-is).
+        "dir": FIRM_DIR,
+        # Short firm rules (role, formatting, controls) — normal RAG ingest + upload.
+        "uploadable": True,
+    },
+    {
+        "id": "drafting_examples",
+        "label": "Firm drafting examples",
         "dir": OKF_MATRIMONIAL_DIR,
-        "extra_dirs": (FIRM_DIR,),
+        # Curated OKF 0.2 example MSAs/certs/briefs — separate from SOPs; index as-is.
         "mode": "okf_bundle",
         "uploadable": False,
     },
@@ -86,10 +92,10 @@ KB_CHUNK_SIZE = 4500  # larger passages → fewer Qdrant Cloud embedding calls f
 KB_MAX_CHUNKS_PER_FILE = 1800  # hard cap so one 9MB book cannot create thousands of vectors
 
 # Retrieval (knowledge base only — case folders are not searched)
-RAG_K_KB = 4  # passages from rules / statutes
-RAG_K_FIRM = 4  # Firm SOPs OKF passages (examples + guides)
+RAG_K_KB = 4  # passages from rules / statutes / SOPs
+RAG_K_EXAMPLES = 3  # firm drafting OKF example passages
 KB_PASSAGE_CHARS = 4000  # trim very long knowledge-base passages
-FIRM_PASSAGE_CHARS = 6000  # firm OKF examples may need more shape than a statute bite
+EXAMPLE_PASSAGE_CHARS = 6000  # drafting examples may need more shape than a statute bite
 
 # Uploads / court portal
 UPLOAD_BATCH_MB = 35

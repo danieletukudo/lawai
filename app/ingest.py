@@ -6,8 +6,8 @@ They are never indexed here. Chat attachments go through app.case_file instead.
 
 Knowledge base:
 * Court Rules / Statutes / Firm SOPs — source files are read and split for retrieval.
-* Firm SOPs — curated OKF bundle (examples of how the firm drafts) plus small
-  guides; indexed as-is (source OKF files are never rewritten).
+* Firm drafting examples (OKF bundles) — already curated concepts; indexed as-is
+  (source OKF files are never rewritten).
 """
 
 from __future__ import annotations
@@ -117,10 +117,10 @@ def concept_id(kind: str, folder: str, name: str) -> str:
     if kind == "library":
         return f"lib-{folder}-{slug(name)}"
     if kind == "firm":
-        # folder is relative path inside the OKF bundle (e.g. examples/pension), or "firm" for guides.
-        if folder and folder not in {"firm", ".", ""}:
-            return f"firm-{slug(folder)}-{slug(name)}"
         return f"firm-{slug(name)}"
+    if kind == "drafting_examples":
+        # folder is the relative path inside the bundle (e.g. examples/pension).
+        return f"okf-draft-{slug(folder)}-{slug(name)}"
     return f"kb-{slug(kind)}-{slug(name)}"
 
 
@@ -187,16 +187,12 @@ def sources() -> list[tuple[str, str, Path]]:
         kind = source["id"]
         if source.get("mode") == "okf_bundle":
             root = source["dir"]
-            if root.exists():
-                for path in _bundle_files(root):
-                    rel = _bundle_rel(root, path)
-                    folder = str(Path(rel).parent).replace("\\", "/")
-                    if folder in {"", "."}:
-                        folder = kind
-                    found.append((kind, folder, path))
-            for extra in source.get("extra_dirs") or ():
-                for path in _files_in(Path(extra)):
-                    found.append((kind, kind, path))
+            for path in _bundle_files(root):
+                rel = _bundle_rel(root, path)
+                folder = str(Path(rel).parent).replace("\\", "/")
+                if folder in {"", "."}:
+                    folder = kind
+                found.append((kind, folder, path))
             continue
         for path in _files_in(source["dir"]):
             found.append((kind, kind, path))
@@ -566,25 +562,19 @@ def kb_stats(enabled: dict[str, bool]) -> list[dict]:
         kind = source["id"]
         as_is = source.get("mode") == "okf_bundle"
         root = source["dir"]
-        entries: list[tuple[str, str, Path, str]] = []  # folder, name, path, display
-        if as_is:
-            if root.exists():
-                for path in _bundle_files(root):
-                    rel = _bundle_rel(root, path)
-                    folder = str(Path(rel).parent).replace("\\", "/")
-                    if folder in {"", "."}:
-                        folder = kind
-                    entries.append((folder, path.name, path, rel))
-            for extra in source.get("extra_dirs") or ():
-                for path in _files_in(Path(extra)):
-                    entries.append((kind, path.name, path, path.name))
-        else:
-            for path in _files_in(root):
-                entries.append((kind, path.name, path, path.name))
-
+        paths = _bundle_files(root) if as_is else _files_in(root)
         chunks = vectors_done = waiting = 0
         file_rows = []
-        for folder, name, path, display in entries:
+        for path in paths:
+            if as_is:
+                rel = _bundle_rel(root, path)
+                folder = str(Path(rel).parent).replace("\\", "/")
+                if folder in {"", "."}:
+                    folder = kind
+                name = path.name
+                display = rel
+            else:
+                folder, name, display = kind, path.name, path.name
             meta = doc_meta(concept_id(kind, folder, name))
             chunks += int(meta.get("chunks") or 0)
             vectors_done += int(meta.get("vectors") or 0)
@@ -604,7 +594,7 @@ def kb_stats(enabled: dict[str, bool]) -> list[dict]:
             {
                 "id": kind,
                 "label": source["label"],
-                "files": len(entries),
+                "files": len(paths),
                 "file_rows": file_rows,
                 "chunks": chunks,
                 "vectors": vectors_done,

@@ -61,7 +61,6 @@ def _client() -> QdrantClient:
         url=QDRANT_URL,
         api_key=QDRANT_API_KEY,
         cloud_inference=True,
-        timeout=120,
     )
 
 
