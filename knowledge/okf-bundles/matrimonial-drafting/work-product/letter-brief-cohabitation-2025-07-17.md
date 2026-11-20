@@ -14,6 +14,9 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "redacted at source; names replaced"
 client_role: "Plaintiff"
 document_date: "2025-07-17"
+sop:
+  - "/sops/sop-3-letter-briefs.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Letter Brief – July 17, 2025 (Redacted)
@@ -159,3 +162,8 @@ Respectfully submitted,
 [REDACTED] cc: [REDACTED], Esq. (via e-mail)
 
 [REDACTED] (via e-mail)
+
+## Related documents
+
+- [SOP 3: Letter briefs](/sops/sop-3-letter-briefs.md) - governing drafting procedure
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

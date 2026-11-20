@@ -14,6 +14,10 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "names-replaced"
 client_role: "Plaintiff"
 document_date: "2023-03-31"
+sop:
+  - "/sops/sop-4-trial-briefs.md"
+  - "/sops/sop-6-tables-of-authorities.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Plaintiff's trial brief (March 31, 2023)
@@ -613,3 +617,6 @@ cc: [Defendant’s Counsel], Esq.
 ## Related documents
 
 - [Written summation in the same case](/work-product/written-summation-2023-10-11.md)
+- [SOP 4: Trial briefs](/sops/sop-4-trial-briefs.md) - governing drafting procedure
+- [SOP 6: Tables of authorities](/sops/sop-6-tables-of-authorities.md) - governing drafting procedure
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

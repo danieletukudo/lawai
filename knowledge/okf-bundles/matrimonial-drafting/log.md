@@ -1,5 +1,12 @@
 # Log
 
+## 2026-11-19
+
+- **Added** the firm's Document Preparation SOP manual (version 1.1, prepared November 18, 2026) as 11 documents under `sops/`: the manual overview, shared standards, SOPs 1 to 7, developer evaluation, and review forms A to D. The text is unchanged. Bold paragraph headings became markdown headings, bullet characters became list items, and the three New Jersey Judiciary links are now recorded as sources. A line-by-line check confirmed every line of the converted manual is placed.
+- **Linked** each certification, brief, summation and MSA to its governing SOP and to the shared standards, both in a `sop` frontmatter list and in its related-documents section. The reading guide links to the developer evaluation, and the SOP summary links to the manual.
+- **Added** `guides/firm-sop-summary.md`, the firm's October 20, 2026 SOP summary. Its headings were moved down one level under a single title heading; no wording was changed. It contains no client information.
+- **Checked** ten re-uploaded files against the versions already in the bundle. All were byte-for-byte identical, so nothing changed.
+
 ## 2026-11-18
 
 - **Created** the bundle from 16 uploaded markdown files, renamed into `guides/`, `examples/`, `work-product/` and `agreements/`. The upload hash prefixes were dropped from the file names.

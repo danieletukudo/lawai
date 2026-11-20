@@ -65,3 +65,4 @@ The ISC example is not included because the original draft, client response, and
 - [Pension example: revised certification](/examples/pension/after.md)
 - [Support example: client's initial certification](/examples/support/before.md)
 - [Support example: developed certification](/examples/support/after.md)
+- [Developer evaluation: tests, release blockers and scoring](/sops/developer-evaluation.md) - the firm's proposed evaluation method for these examples

@@ -14,6 +14,8 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "not anonymized"
 client_role: "Plaintiff"
 document_date: "2026-01-15"
+sop:
+  - "/sops/shared-standards.md"
 ---
 
 # Plaintiff's intensive settlement conference statement (January 15, 2026)
@@ -317,3 +319,7 @@ Devon W. MacGillivray
 cc: Sara Kucsan, Esq. (via email)
 
 Plaintiff (via email)
+
+## Related documents
+
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

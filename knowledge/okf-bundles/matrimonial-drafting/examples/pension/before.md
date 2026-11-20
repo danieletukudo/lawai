@@ -15,6 +15,9 @@ anonymization: "fictionalized"
 client_role: "Plaintiff"
 example_set: "pension"
 example_role: "before"
+sop:
+  - "/sops/sop-1-certifications.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Pension-credit certification (earlier draft)
@@ -98,3 +101,5 @@ Date \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 - [Client comments on this draft](/examples/pension/client-comments.md)
 - [Revised certification answering those comments](/examples/pension/after.md)
 - [Reading guide](/guides/reading-guide.md)
+- [SOP 1: Certifications](/sops/sop-1-certifications.md) - governing drafting procedure
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

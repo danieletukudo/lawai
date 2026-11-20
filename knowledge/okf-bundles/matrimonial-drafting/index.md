@@ -9,6 +9,21 @@ Reference examples and work product for reviewing drafting quality and designing
 ## Guides
 
 - [Reading guide for the drafting examples](/guides/reading-guide.md) - Explains the two before-and-after drafting examples, how they were anonymized, and how to use them to evaluate an AI drafting workflow.
+- [Firm SOP summary: discovery, motions, custody, trials and advertising](/guides/firm-sop-summary.md) - Team quick reference for choosing the right practice guide, preparing discovery, motions, contested custody and trial work, and reviewing attorney advertising before release.
+
+## Firm drafting SOPs (manual version 1.1, November 18, 2026)
+
+- [Document preparation SOP manual (version 1.1)](/sops/document-preparation-manual.md) - Firm drafting manual setting the process and acceptance standards for certifications, MSAs, letter briefs, trial briefs, exhibit lists, tables of authorities, and exhibit assembly.
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md) - Standards applied to every SOP: assignment sheet, record reconciliation, issue and relief matrix, formatting defaults, separate fact and law verification, staged release, and handling of prior work product.
+- [SOP 1: Certifications](/sops/sop-1-certifications.md) - How to turn the client's account and supporting record into a first-person factual certification that answers every allegation and supports each requested item of relief.
+- [SOP 2: Marital settlement agreements](/sops/sop-2-marital-settlement-agreements.md) - How to memorialize an approved settlement as complete, performable obligations without changing the bargain, using a term reconciliation table and a performance checklist.
+- [SOP 3: Letter briefs](/sops/sop-3-letter-briefs.md) - How to write focused advocacy in which each point states the requested determination, rule and burden, verified authority, record application, counterargument, and remedy.
+- [SOP 4: Trial briefs](/sops/sop-4-trial-briefs.md) - How to prepare an issue-by-issue trial roadmap, pretrial or post-trial, with a proof table, asset-level financial analysis, and performable proposed findings for every contested issue.
+- [SOP 5: Trial exhibit lists](/sops/sop-5-trial-exhibit-lists.md) - How to build a court-facing exhibit list and a separate internal proof matrix that ties every exhibit to an issue, purpose, foundation, and status.
+- [SOP 6: Tables of authorities](/sops/sop-6-tables-of-authorities.md) - How to index the authorities actually cited in the final brief against its final printed pages, and keep the table synchronized through every edit.
+- [SOP 7: Trial and motion exhibit assembly](/sops/sop-7-exhibit-assembly.md) - How to assemble exhibit packets: Bates-stamped evidence pages for trial, and numbered tabs with an index for motions, with control registers and final page-by-page review.
+- [Developer evaluation: tests, release blockers and scoring](/sops/developer-evaluation.md) - Proposed method for testing the AI drafting workflow against de-identified evaluation packets, with observable tests per document type, release blockers, and a 0 to 3 scoring scale.
+- [Reusable review forms A to D](/sops/review-forms.md) - Blank forms for the assignment and source record, issue and evidence record, revision and decision log, and final reviewer record.
 
 ## Pension example (client is Plaintiff)
 

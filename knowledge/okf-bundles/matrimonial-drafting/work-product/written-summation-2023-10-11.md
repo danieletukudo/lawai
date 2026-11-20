@@ -15,6 +15,9 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "names-replaced"
 client_role: "Plaintiff"
 document_date: "2023-10-11"
+sop:
+  - "/sops/sop-4-trial-briefs.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Plaintiff's written summation and proposed findings (October 11, 2023)
@@ -925,3 +928,5 @@ Plaintiff
 ## Related documents
 
 - [Trial brief in the same case](/work-product/trial-brief-2023-03-31.md)
+- [SOP 4: Trial briefs](/sops/sop-4-trial-briefs.md) - covers post-trial summations
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

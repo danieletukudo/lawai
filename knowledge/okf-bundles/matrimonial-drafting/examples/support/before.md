@@ -15,6 +15,9 @@ anonymization: "fictionalized"
 client_role: "Defendant"
 example_set: "support"
 example_role: "before"
+sop:
+  - "/sops/sop-1-certifications.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Pendente lite support certification (client's initial draft)
@@ -91,3 +94,5 @@ Date: September 26, 2054
 
 - [Developed certification](/examples/support/after.md)
 - [Reading guide (the later draft draws on case information beyond this one)](/guides/reading-guide.md)
+- [SOP 1: Certifications](/sops/sop-1-certifications.md) - governing drafting procedure
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

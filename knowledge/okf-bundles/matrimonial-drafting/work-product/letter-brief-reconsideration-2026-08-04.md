@@ -13,6 +13,9 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "names-replaced"
 client_role: "Plaintiff"
 document_date: "2026-08-04"
+sop:
+  - "/sops/sop-3-letter-briefs.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Letter brief opposing reconsideration (August 4, 2026)
@@ -83,3 +86,5 @@ cc: (w/enc., via email, regular mail, certified mail RRR)
 
 - [Plaintiff's certification relied on as the statement of facts](/work-product/plaintiff-certification-reconsideration-2026-08-04.md)
 - [Certification of services](/work-product/certification-of-services-2026-08-04.md)
+- [SOP 3: Letter briefs](/sops/sop-3-letter-briefs.md) - governing drafting procedure
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

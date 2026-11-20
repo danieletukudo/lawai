@@ -13,6 +13,9 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "names-replaced; dates and figures not fictionalized"
 client_role: "Defendant"
 document_date: "2026-10-30"
+sop:
+  - "/sops/sop-1-certifications.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Pendente lite support certification (as prepared, October 30, 2026)
@@ -173,3 +176,8 @@ I hereby certify that the forgoing statements made by me are true. I understand 
 *Defendant*
 
 Dated: October 30, 2026
+
+## Related documents
+
+- [SOP 1: Certifications](/sops/sop-1-certifications.md) - governing drafting procedure
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)

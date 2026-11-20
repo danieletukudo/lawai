@@ -13,6 +13,9 @@ content_author: "Tanya Freeman Law, LLC and predecessor firms (attorney work pro
 anonymization: "names-replaced"
 client_role: "Plaintiff"
 document_date: "2026-08-04"
+sop:
+  - "/sops/sop-1-certifications.md"
+  - "/sops/shared-standards.md"
 ---
 
 # Certification of services, reconsideration opposition (August 4, 2026)
@@ -106,3 +109,5 @@ Dated: <u>August 4, 2026</u> \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 
 - [Plaintiff's certification](/work-product/plaintiff-certification-reconsideration-2026-08-04.md)
 - [Letter brief](/work-product/letter-brief-reconsideration-2026-08-04.md)
+- [SOP 1: Certifications](/sops/sop-1-certifications.md) - SOP 1 notes a services certification also needs its own fee records and rule checks
+- [Shared drafting standards (all SOPs)](/sops/shared-standards.md)
